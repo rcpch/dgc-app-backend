@@ -1,0 +1,11 @@
+envs/.env
+
+__pycache__
+.DS_Store
+/.cache
+*.code-workspace
+.vscode/*
+!/.vscode/settings.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+

@@ -1,0 +1,43 @@
+x-global-environment: &global
+  env_file:
+    - envs/.env # env file - NOT committed to Git
+
+services:
+  caddy:
+    <<: *global # this will inherit all the envs from x-global-environment
+    depends_on:
+      - django
+    image: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+    volumes:
+      - dgc-app-backend-caddy-data:/data/
+      - dgc-app-backend-caddy-data:/config/
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./staticdocs:/srv/staticdocs
+
+  # Django web application
+  django: &django
+    <<: *global # this will inherit all the envs from x-global-environment
+    build: .
+    image: dgc-app-backend-django:built # build image and save for use by other containers
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app/
+    command: s/start-dev
+    restart: always
+
+
+  postgres:
+    <<: *global # this will inherit all the envs from x-global-environment
+    image: postgres:17.6
+    volumes:
+      - dgc-app-backend-postgres-data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  dgc-app-backend-caddy-data:
+  dgc-app-backend-postgres-data:
