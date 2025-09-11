@@ -11,6 +11,11 @@
     # DJANGO
     reverse_proxy http://django:8000
 
+    # DEMO SPA (handle rather than handle_path to avoid stripping /demo prefix)
+    handle /demo/* {
+        reverse_proxy http://demo:5173
+    }
+
     log {
         level ERROR # switch to DEBUG for more verbose logging
     }

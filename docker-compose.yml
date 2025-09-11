@@ -18,18 +18,33 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./staticdocs:/srv/staticdocs
 
-  # Django web application
+  # Django Ninja API
   django: &django
     <<: *global # this will inherit all the envs from x-global-environment
-    build: .
+    build:
+      dockerfile: django.Dockerfile 
     image: dgc-app-backend-django:built # build image and save for use by other containers
     depends_on:
       - postgres
     volumes:
       - .:/app/
-    command: s/start-dev
+    command: s/django/start-dev
     restart: always
 
+  # Example SPA consumer of the API
+  demo:
+    <<: *global # this will inherit all the envs from x-global-environment
+    build:
+      dockerfile: demo.Dockerfile
+    image: dgc-app-backend-demo:built # build image and save for use by other containers
+    depends_on:
+      - django
+    volumes:
+      - .:/app/
+    # Workdir is set to /app/demo in the Dockerfile
+    command: ../s/demo/start-dev
+    # command: sleep 100000
+    restart: always
 
   postgres:
     <<: *global # this will inherit all the envs from x-global-environment
