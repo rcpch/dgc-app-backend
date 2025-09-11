@@ -22,7 +22,7 @@ async function login() {
 
     const parameters = {
       redirect_uri: 'https://dgc-app-backend.localhost/demo/oauth-callback',
-      scope: 'openid profile email',
+      scope: `${import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID}/.default`,
       code_challenge,
       code_challenge_method: 'S256',
       state
