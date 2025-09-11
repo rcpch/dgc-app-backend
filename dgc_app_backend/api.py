@@ -8,6 +8,7 @@ import jwt
 
 from dataclasses import dataclass
 from datetime import date
+from uuid import UUID
 
 from django.conf import settings
 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AuthData:
-    user_id: str
+    user: UserRegistration
     name: str
 
 class AuthBearer(HttpBearer):
@@ -47,7 +48,7 @@ class AuthBearer(HttpBearer):
             m.update(claims["sub"].encode('utf-8'))
             user_id = m.hexdigest()
 
-            registration = UserRegistration.objects.get_or_create(
+            (user, _) = UserRegistration.objects.get_or_create(
                 id=user_id,
                 defaults={
                     "salt": os.urandom(32).hex()
@@ -56,16 +57,16 @@ class AuthBearer(HttpBearer):
 
             key = hashlib.pbkdf2_hmac(
                 'sha256',
-                user_id.encode('utf-8'),
-                registration[0].salt.encode('utf-8'),
-                registration[0].iterations
+                user.id.encode('utf-8'),
+                user.salt.encode('utf-8'),
+                user.iterations
             ).hex()
 
             logger.info(key)
 
             name = claims["name"]
 
-            return AuthData(user_id, name=name)
+            return AuthData(user, name=name)
 
 api = NinjaAPI()
 
@@ -75,7 +76,7 @@ def hello(request):
 
 
 class PatientSchema(Schema):
-    id: str
+    id: UUID
     name: str
     birth_date: date
 
@@ -84,10 +85,26 @@ class PatientsSchema(Schema):
 
 @api.get("/patients", auth=AuthBearer(), response=PatientsSchema)
 def patients(request):
-    user_id = request.auth.user_id
+    logger.info(f"Fetching patients for user {request.auth.user.id}")
 
-    logger.info(f"Fetching patients for user {user_id}")
-
-    patients = Patient.objects.filter(users=user_id)
+    patients = Patient.objects.filter(users=request.auth.user)
 
     return {"patients": patients}
+
+
+class NewPatientSchema(Schema):
+    name: str
+    birth_date: date
+
+@api.post("/patients", auth=AuthBearer(), response=PatientSchema)
+def add_patient(request, data: NewPatientSchema):
+    logger.info(f"Adding patient for user {request.auth.user.id}: {data.name}, {data.birth_date}")
+
+    patient = Patient.objects.create(
+        name=data.name,
+        birth_date=data.birth_date
+    )
+
+    patient.users.add(request.auth.user)
+
+    return patient

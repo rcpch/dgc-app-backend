@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
+import { FormEvent } from 'preact/compat';
 
 async function login() {
   const config = await client.discovery(
@@ -50,23 +51,53 @@ async function getPatients() {
     }
   });
 
-  const patients = await response.json();
+  const { patients } = await response.json();
 
-  console.log(patients);
+  return patients;
+}
+
+async function addPatient(name: string, birth_date: string) {
+  const response = await fetch("/api/patients", {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage['access_token']}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, birth_date })
+    });
+
+    const patient = await response.json();
+
+    return patient;
 }
 
 export function Home() {
   const [token, setToken] = useState(localStorage.access_token);
+  const [patients, setPatients] = useState([]);
 
   useEffect(() => {
-    getPatients();
-  }, []);
+    if(token) {
+      getPatients().then(setPatients);
+    } else {
+      setPatients([]);
+    }
+  }, [token]);
 
   const sub = token ? JSON.parse(atob(token.split('.')[1])).sub : null;
 
   function onTestFormSubmit(e: Event) {
     e.preventDefault();
     testBackend();
+  }
+
+  async function onAddPatientFormSubmit(e: Event) {
+    e.preventDefault();
+
+    const name = (e.target as any).name.value;
+    const birth_date = (e.target as any).birth_date.value;
+
+    const patient = await addPatient(name, birth_date);
+    setPatients([...patients, patient]);
   }
 
   function onLoginFormSubmit(e: Event) {
@@ -79,17 +110,46 @@ export function Home() {
     }
   };
 
+  console.log(patients);
+
 	return (
 		<div id="app" class="container">
       {token ?
-        <form id="test_form" onSubmit={onTestFormSubmit}>
+        <>  
           <h3 id="sub">
             {sub ? `Logged in as: ${sub}` : ''}
           </h3>
-          <input type="submit" value="Test Backend" />
-        </form>
+          <hr />
+          <form onSubmit={onTestFormSubmit}>
+            <input type="submit" value="Test Backend" />
+          </form>
+          <hr />
+          <table>
+            <thead>
+              <tr>
+                <td>Name</td>
+                <td>Birth Date</td>
+              </tr>
+            </thead>
+            <tbody>
+              {patients.map(patient => (
+                <tr key={patient.id}>
+                  <td>{patient.name}</td>
+                  <td>{patient.birth_date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <form onSubmit={onAddPatientFormSubmit}>
+            <h4>Add new patient</h4>
+            <input type="text" name="name" placeholder="Name" value="" required />
+            <input type="date" name="birth_date" placeholder="Birth Date" value="1970-01-01" required />
+            <input type="submit" value="Add Patient" />
+          </form>
+          <hr />
+        </>
       : ''}
-			<form id="login_form" onSubmit={onLoginFormSubmit}>
+			<form onSubmit={onLoginFormSubmit}>
 				<input type="submit" value={token ? 'Logout' : 'Login'} />
 			</form>
 			</div>
