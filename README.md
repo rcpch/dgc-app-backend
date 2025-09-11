@@ -3,9 +3,7 @@
 Backend for storing data for the RCPCH Digital Growth Charts app
 
 TODO
-  - Entra ID login (just to demonstrate getting an OIDC JWT)
-  - Table mapping hashed `sub` to `salt`
-  - Derive key from hashed `sub` and `salt`
-    - Store iterations alongside salt mapping?
-  - Encrypt personal fields on model
+  - Sharing
+    - One time link (with expiry) that links to patient key, encrypted with the one time link
+    - Add UserPatientKey for that user
   - Store height/weight plaintext?

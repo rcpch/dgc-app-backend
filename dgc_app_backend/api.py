@@ -2,6 +2,7 @@ import os
 
 import logging
 import hashlib
+import base64
 
 import httpx
 import jwt
@@ -14,8 +15,15 @@ from django.conf import settings
 
 from ninja import NinjaAPI, Schema
 from ninja.security import HttpBearer
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from .backend.models import UserRegistration, Patient
+from .backend.models import (
+    UserRegistration,
+    Patient,
+    UserPatientKey
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +31,7 @@ logger = logging.getLogger(__name__)
 class AuthData:
     user: UserRegistration
     name: str
+    key: bytes
 
 class AuthBearer(HttpBearer):
     def authenticate(self, request, token):
@@ -55,18 +64,18 @@ class AuthBearer(HttpBearer):
                 }
             )
 
-            key = hashlib.pbkdf2_hmac(
-                'sha256',
-                user.id.encode('utf-8'),
-                user.salt.encode('utf-8'),
-                user.iterations
-            ).hex()
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=user.salt.encode('utf-8'),
+                iterations=user.iterations,
+            )
 
-            logger.info(key)
+            key = base64.urlsafe_b64encode(kdf.derive(user_id.encode('utf-8')))
 
             name = claims["name"]
 
-            return AuthData(user, name=name)
+            return AuthData(user, name, key)
 
 api = NinjaAPI()
 
@@ -89,6 +98,25 @@ def patients(request):
 
     patients = Patient.objects.filter(users=request.auth.user)
 
+    for patient in patients:
+        user_patient_key = UserPatientKey.objects.get(
+            user=request.auth.user,
+            patient=patient
+        ).key
+
+        user_patient_key = base64.urlsafe_b64decode(user_patient_key.encode('utf-8'))
+        patient_key = Fernet(request.auth.key).decrypt(user_patient_key)
+
+        f = Fernet(patient_key)
+
+        encrypted_name = base64.urlsafe_b64decode(patient.name.encode('utf-8'))
+        decrypted_name = f.decrypt(encrypted_name).decode('utf-8')
+        patient.name = decrypted_name
+
+        encrypted_birth_date = base64.urlsafe_b64decode(patient.birth_date.encode('utf-8'))
+        decrypted_birth_date = f.decrypt(encrypted_birth_date).decode('utf-8')
+        patient.birth_date = date.fromisoformat(decrypted_birth_date)
+
     return {"patients": patients}
 
 
@@ -98,13 +126,31 @@ class NewPatientSchema(Schema):
 
 @api.post("/patients", auth=AuthBearer(), response=PatientSchema)
 def add_patient(request, data: NewPatientSchema):
-    logger.info(f"Adding patient for user {request.auth.user.id}: {data.name}, {data.birth_date}")
+    patient_key = Fernet.generate_key()
+    f = Fernet(patient_key)
+
+    encrypted_name = f.encrypt(data.name.encode('utf-8'))
+    encrypted_name = base64.urlsafe_b64encode(encrypted_name).decode('utf-8')
+
+    encrypted_birth_date = f.encrypt(data.birth_date.isoformat().encode('utf-8'))
+    encrypted_birth_date = base64.urlsafe_b64encode(encrypted_birth_date).decode('utf-8')
 
     patient = Patient.objects.create(
-        name=data.name,
-        birth_date=data.birth_date
+        name=encrypted_name,
+        birth_date=encrypted_birth_date
     )
 
-    patient.users.add(request.auth.user)
+    user_patient_key = Fernet(request.auth.key).encrypt(patient_key)
+    user_patient_key = base64.urlsafe_b64encode(user_patient_key).decode('utf-8')
 
-    return patient
+    UserPatientKey.objects.create(
+        user=request.auth.user,
+        patient=patient,
+        key=user_patient_key
+    )
+
+    return {
+        "id": patient.id,
+        "name": data.name,
+        "birth_date": data.birth_date
+    }
