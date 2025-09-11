@@ -10,6 +10,7 @@ const config = await client.discovery(
 
 const loginForm = document.getElementById('login_form')!;
 const subDisplay = document.getElementById('sub')!;
+const testForm = document.getElementById('test_form')!;
 
 const token = localStorage['access_token'];
 
@@ -35,8 +36,25 @@ async function login() {
     window.location.href = authUrl.href;
 }
 
+async function testBackend() {
+  const response = await fetch("/api/hello", {
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`
+    }
+  });
+
+  console.log(response.status)
+}
+
+testForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await testBackend();
+});
+
 if (token) {
+  testForm.style.display = "block";
   subDisplay.textContent = `Logged in as: ${JSON.parse(atob(token.split('.')[1])).sub}`;
+
   loginForm.querySelector("input[type=submit]")!.setAttribute("value", "Logout");
 
   loginForm.onsubmit = async (e) => {
@@ -44,7 +62,9 @@ if (token) {
     
     delete localStorage['access_token'];
 
+    testForm.style.display = "none";
     subDisplay.textContent = "";
+
     loginForm.querySelector("input[type=submit]")?.setAttribute("value", "Login");
 
     loginForm.onsubmit = async (e) => {

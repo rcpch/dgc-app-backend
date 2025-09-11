@@ -5,10 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DGC App Backend Demo</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+      #test_form {
+        display: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="app">
-      <h3 id="sub"></h3>
+    <div id="app" class="container">
+      <form id="test_form">
+        <h3 id="sub"></h3>
+        <input type="submit" value="Test Backend" />
+      </form>
       <form id="login_form">
         <input type="submit" value="Login" />
       </form>

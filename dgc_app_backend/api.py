@@ -10,4 +10,4 @@ api = NinjaAPI()
 
 @api.get("/hello", auth=AuthBearer())
 def hello(request):
-    return "Hello world"
+    return request.auth
