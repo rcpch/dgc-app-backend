@@ -48,6 +48,18 @@ async function testBackend() {
   alert(`Hello ${name}`);
 }
 
+async function getPatients() {
+  const response = await fetch("/api/patients", {
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`
+    }
+  });
+
+  const groups = await response.json();
+
+  console.log(groups);
+}
+
 testForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   await testBackend();
@@ -74,6 +86,8 @@ if (token) {
       await login();
     }
   }
+
+  getPatients();
 } else {
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
