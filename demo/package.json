@@ -1,18 +1,19 @@
 {
-  "name": "dgc-app-backend",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "typescript": "~5.8.3",
-    "vite": "^7.1.2"
-  },
-  "dependencies": {
-    "openid-client": "6.7.1" 
-  }
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host 0.0.0.0",
+		"build": "vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"preact": "^10.26.9",
+		"preact-iso": "^2.10.0",
+    "openid-client": "6.7.1"
+	},
+	"devDependencies": {
+		"@preact/preset-vite": "^2.10.2",
+		"typescript": "^5.9.2",
+		"vite": "^7.0.4"
+	}
 }

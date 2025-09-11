@@ -71,7 +71,7 @@ api = NinjaAPI()
 
 @api.get("/hello", auth=AuthBearer())
 def hello(request):
-    return request.auth.claims["name"]
+    return request.auth.name
 
 
 class PatientSchema(Schema):
@@ -89,5 +89,5 @@ def patients(request):
     logger.info(f"Fetching patients for user {user_id}")
 
     patients = Patient.objects.filter(users=user_id)
-    
+
     return {"patients": patients}
