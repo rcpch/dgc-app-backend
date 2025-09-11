@@ -32,10 +32,12 @@ class AuthBearer(HttpBearer):
         logger.info(claims)
 
         if token:
-            return token
+            return {
+                "claims": claims,
+            }
 
 api = NinjaAPI()
 
 @api.get("/hello", auth=AuthBearer())
 def hello(request):
-    return request.auth
+    return request.auth["claims"]["name"]

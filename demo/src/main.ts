@@ -43,7 +43,9 @@ async function testBackend() {
     }
   });
 
-  console.log(response.status)
+  const name = await response.text();
+
+  alert(`Hello ${name}`);
 }
 
 testForm?.addEventListener('submit', async (e) => {
