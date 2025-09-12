@@ -50,8 +50,8 @@ class PatientSchema(Schema):
     def from_encrypted_patient(cls, patient: Patient, patient_key: Fernet):
         return cls(
             id=patient.id,
-            name=decrypt_str(patient_key, patient.name),
-            date_of_birth=date.fromisoformat(decrypt_str(patient_key, patient.date_of_birth))
+            name=decrypt_str(patient_key, patient.encrypted_name),
+            date_of_birth=date.fromisoformat(decrypt_str(patient_key, patient.encrypted_date_of_birth))
         )
 
 class PatientsSchema(Schema):
@@ -88,8 +88,8 @@ def add_patient(request, data: NewPatientSchema):
     encrypted_date_of_birth = encrypt_str(patient_f, data.date_of_birth.isoformat())
 
     patient = Patient.objects.create(
-        name=encrypted_name,
-        date_of_birth=encrypted_date_of_birth
+        encrypted_name=encrypted_name,
+        encrypted_date_of_birth=encrypted_date_of_birth
     )
 
     encrypted_patient_key = encrypt_bytes(request.auth.key, patient_key)
@@ -123,10 +123,10 @@ def update_patient(request, patient_id: str, data: UpdatePatientSchema):
     (_, patient_key) = user_patient.decrypt_patient_key(request.auth.key)
 
     if data.name is not None:
-        patient.name = encrypt_str(patient_key, data.name)
+        patient.encrypted_name = encrypt_str(patient_key, data.name)
 
     if data.date_of_birth is not None:
-        patient.date_of_birth = encrypt_str(patient_key, data.date_of_birth.isoformat())
+        patient.encrypted_date_of_birth = encrypt_str(patient_key, data.date_of_birth.isoformat())
 
     patient.save()
 
@@ -217,7 +217,7 @@ def get_patient_from_share(request, data: SharePatientSchema):
         return 401, None
 
     # Check we have the right patient key (throws if key invalid)
-    decrypt_str(patient_key_f, patient.name)
+    decrypt_str(patient_key_f, patient.encrypted_name)
 
     # Re-encrypt the patient key for this user
     encrypted_patient_key = encrypt_bytes(request.auth.key, patient_key)
