@@ -123,6 +123,7 @@ class NewPatientSchema(Schema):
     name: str
     birth_date: date
 
+
 @api.post("/patients", auth=AuthBearer(), response=PatientSchema)
 def add_patient(request, data: NewPatientSchema):
     patient_key = Fernet.generate_key()
@@ -270,3 +271,53 @@ def share_patient(request, patient_id: str):
     return {
         "token": f"{share_record.id}.{password}"
     }
+
+
+@api.post("/patients-from-share", auth=AuthBearer(), response={200: PatientSchema, 401: None})
+def get_patient_from_share(request, data: SharePatientSchema):
+    try:
+        share_record = SharePatient.objects.get(id=data.token.split('.')[0])
+    except SharePatient.DoesNotExist:
+        return 401, None
+
+    password = data.token.split('.')[1]
+
+    # Verify the password
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=share_record.salt.encode('utf-8'),
+        iterations=share_record.iterations,
+    )
+
+    share_key = base64.urlsafe_b64encode(kdf.derive(password.encode('utf-8')))
+
+    # Decrypt the patient key
+    f = Fernet(share_key)
+    patient_key = f.decrypt(base64.urlsafe_b64decode(share_record.key.encode('utf-8')))
+
+    f = Fernet(patient_key)
+
+    # Find the patient
+    try:
+        patient = Patient.objects.get(id=share_record.patient.id)
+    except Patient.DoesNotExist:
+        return 401, None
+
+    encrypted_name = base64.urlsafe_b64decode(patient.name.encode('utf-8'))
+    patient.name = f.decrypt(encrypted_name).decode('utf-8')
+
+    encrypted_birth_date = base64.urlsafe_b64decode(patient.birth_date.encode('utf-8'))
+    patient.birth_date = f.decrypt(encrypted_birth_date).decode('utf-8')
+    patient.birth_date = date.fromisoformat(patient.birth_date)
+
+    user_patient_key = Fernet(request.auth.key).encrypt(patient_key)
+    user_patient_key = base64.urlsafe_b64encode(user_patient_key).decode('utf-8')
+
+    UserPatientKey.objects.create(
+        user=request.auth.user,
+        patient=patient,
+        key=user_patient_key
+    )
+
+    return 200, patient

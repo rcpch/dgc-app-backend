@@ -3,6 +3,7 @@ import { LocationProvider, Router, Route } from 'preact-iso';
 
 import { Home } from './pages/Home';
 import { OAuthCallback } from './pages/OAuthCallback';
+import { Share } from './pages/Share';
 import { NotFound } from './pages/_404';
 
 export function App() {
@@ -10,8 +11,9 @@ export function App() {
 		<LocationProvider>
 			<main>
 				<Router>
+					<Route path="/demo/oauth-callback" component={OAuthCallback} />
+					<Route path="/demo/share" component={Share} />
 					<Route path="/demo" component={Home} />
-                    <Route path="/demo/oauth-callback" component={OAuthCallback} />
 					<Route default component={NotFound} />
 				</Router>
 			</main>

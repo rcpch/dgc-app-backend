@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
-type Patient = {
-  id: string;
-  name: string;
-  birth_date: string;
-}
+import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient } from '../api';
 
 async function login() {
   const config = await client.discovery(
@@ -35,84 +31,6 @@ async function login() {
   sessionStorage['state'] = state;
 
   window.location.href = authUrl.href;
-}
-
-async function testBackend() {
-  const response = await fetch("/api/hello", {
-    headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
-    }
-  });
-
-  const name = await response.text();
-
-  alert(`Hello ${name}`);
-}
-
-async function getPatients() {
-  const response = await fetch("/api/patients", {
-    headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
-    }
-  });
-
-  const { patients } = await response.json();
-
-  return patients;
-}
-
-async function addPatient(name: string, birth_date: string) {
-  const response = await fetch("/api/patients", {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage['access_token']}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ name, birth_date })
-    });
-
-    const patient = await response.json();
-
-    return patient;
-}
-
-async function deletePatient(id: string) {
-  await fetch(`/api/patients/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage['access_token']}`,
-      }
-    });
-}
-
-async function updatePatient(patient: Patient) {
-  const body = { ...patient };
-  delete body.id;
-
-  const response = await fetch(`/api/patients/${patient.id}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(patient)
-  });
-
-  return response.json();
-}
-
-async function sharePatient(id: string) {
-  const response = await fetch(`/api/patients/${id}/share`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
-      'Content-Type': 'application/json'
-    }
-  });
-
-  const { token } = await response.json();
-
-  return token;
 }
 
 export function Home() {
@@ -198,7 +116,7 @@ export function Home() {
 
   async function onSharePatient(id: string) {
     const token = await sharePatient(id);
-    prompt("Share this link:", `${window.location.origin}/share/${token}`);
+    prompt("Share this link:", `${window.location.origin}/demo/share?token=${token}`);
   }
 
 	return (
