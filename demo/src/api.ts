@@ -16,7 +16,7 @@ export async function testBackend() {
   alert(`Hello ${name}`);
 }
 
-export async function getPatients() {
+export async function getPatients(): Promise<Patient[]> {
   const response = await fetch("/api/patients", {
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`
@@ -28,7 +28,7 @@ export async function getPatients() {
   return patients;
 }
 
-export async function addPatient(name: string, date_of_birth: string) {
+export async function addPatient(name: string, date_of_birth: string): Promise<Patient> {
   const response = await fetch("/api/patients", {
       method: 'POST',
       headers: {
@@ -43,7 +43,7 @@ export async function addPatient(name: string, date_of_birth: string) {
     return patient;
 }
 
-export async function deletePatient(id: string) {
+export async function deletePatient(id: string): Promise<void> {
   await fetch(`/api/patients/${id}`, {
       method: 'DELETE',
       headers: {
@@ -52,7 +52,7 @@ export async function deletePatient(id: string) {
     });
 }
 
-export async function updatePatient(patient: Patient) {
+export async function updatePatient(patient: Patient): Promise<Patient> {
   const body = { ...patient };
   delete body.id;
 
@@ -68,7 +68,7 @@ export async function updatePatient(patient: Patient) {
   return response.json();
 }
 
-export async function sharePatient(id: string) {
+export async function sharePatient(id: string): Promise<string> {
   const response = await fetch(`/api/patients/${id}/share`, {
     method: 'POST',
     headers: {
@@ -82,8 +82,28 @@ export async function sharePatient(id: string) {
   return token;
 }
 
+export type ShareDetails = {
+  sharer_name: string;
+  patient_name: string;
+}
+
+export async function getShareDetails(token: string): Promise<ShareDetails> {
+  const response = await fetch(`/api/share-token-details`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ token })
+  });
+
+  const { sharer_name, patient_name } = await response.json();
+
+  return { sharer_name, patient_name };
+}
+
 export async function addSharedPatient(token: string) {
-  const response = await fetch(`/api/patients-from-share`, {
+  const response = await fetch(`/api/use-share-token`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`,

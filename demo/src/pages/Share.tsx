@@ -1,17 +1,30 @@
-import { useState } from "preact/hooks";
-import { addSharedPatient } from "../api";
+import { useState, useEffect } from "preact/hooks";
+import { addSharedPatient, getShareDetails, ShareDetails } from "../api";
+
+const shareToken = new URL(window.location.href).searchParams.get("token")!;
 
 async function onAddSharedPatient() {
-  await addSharedPatient(new URL(window.location.href).searchParams.get("token")!);
+  await addSharedPatient(shareToken);
   window.location.href = '/demo/';
 }
 
 export function Share() {
-  const [token, setToken] = useState(localStorage.access_token);
+  const [shareDetails, setShareDetails] = useState<ShareDetails | null>(null);
+
+  useEffect(() => {
+    getShareDetails(shareToken).then(setShareDetails);
+  }, []);
 
   return (
     <div class="container">
-      <button onClick={onAddSharedPatient}>Add Patient</button>
+      {shareDetails ? (
+        <div>
+          <p>{shareDetails.sharer_name} has shared a patient with you: {shareDetails.patient_name}</p>
+          <button onClick={onAddSharedPatient}>Add Patient</button>
+        </div>
+      ) : (
+        <p>Loading...</p>
+      )}
     </div>
   );
 }

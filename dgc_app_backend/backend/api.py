@@ -173,7 +173,9 @@ def share_patient(request, patient_id: str):
     except:
         return 404, None
 
-    (patient_key, _) = user_patient.decrypt_patient_key(request.auth.key)
+    (patient_key, patient_key_f) = user_patient.decrypt_patient_key(request.auth.key)
+
+    decrypted_patient = PatientSchema.from_encrypted_patient(patient, patient_key_f)
 
     password = str(uuid.uuid4())
 
@@ -182,13 +184,16 @@ def share_patient(request, patient_id: str):
 
     share_key = derive_key(password, salt, iterations)
 
-    encrypted_patient_key = share_key.encrypt(patient_key)
-    encrypted_patient_key = base64.urlsafe_b64encode(encrypted_patient_key).decode('utf-8')
+    encrypted_patient_key = encrypt_bytes(share_key, patient_key)
+    encrypted_sharer_name = encrypt_str(share_key, request.auth.name)
+    encrypted_patient_name = encrypt_str(share_key, decrypted_patient.name)
 
     share_record = SharePatient.objects.create(
         salt=salt,
         iterations=iterations,
         encrypted_patient_key=encrypted_patient_key,
+        encrypted_sharer_name=encrypted_sharer_name,
+        encrypted_patient_name=encrypted_patient_name,
         patient=patient
     )
 
@@ -197,7 +202,32 @@ def share_patient(request, patient_id: str):
     }
 
 
-@api.post("/patients-from-share", auth=AuthBearer(), response={200: PatientSchema, 401: None})
+class ShareTokenDetails(Schema):
+    sharer_name: str
+    patient_name: str
+
+@api.post("/share-token-details", auth=AuthBearer(), response={200: ShareTokenDetails, 401: None})
+def share_token_details(request, data: SharePatientSchema):
+    share_id = data.token.split('.')[0]
+    password = data.token.split('.')[1]
+
+    try:
+        share_record = SharePatient.objects.get(id=share_id)
+    except SharePatient.DoesNotExist:
+        return 401, None
+
+    share_key = derive_key(password, share_record.salt, share_record.iterations)
+
+    sharer_name = decrypt_str(share_key, share_record.encrypted_sharer_name)
+    patient_name = decrypt_str(share_key, share_record.encrypted_patient_name)
+
+    return 200, {
+        "sharer_name": sharer_name,
+        "patient_name": patient_name
+    }
+
+
+@api.post("/use-share-token", auth=AuthBearer(), response={200: PatientSchema, 401: None})
 def get_patient_from_share(request, data: SharePatientSchema):
     share_id = data.token.split('.')[0]
     password = data.token.split('.')[1]

@@ -64,6 +64,8 @@ class SharePatient(models.Model):
 
     # Encrypted with the key derived from the password in the share link
     encrypted_patient_key = models.CharField(max_length=300)
+    encrypted_sharer_name = models.CharField(max_length=300)
+    encrypted_patient_name = models.CharField(max_length=300)
 
     def decrypt_patient_key(self, share_key: Fernet) -> tuple[bytes, Fernet]:
         patient_key = decrypt_bytes(share_key, self.encrypted_patient_key)
