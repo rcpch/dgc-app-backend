@@ -19,7 +19,8 @@ class UserPatientKey(models.Model):
         to='Patient',
         on_delete=models.CASCADE
     )
-   
+    
+    # Encrypted with the key derived from the user ID
     key = models.CharField(max_length=300)
 
     class Meta:
@@ -42,3 +43,21 @@ class Patient(models.Model):
         return str(self.id)
 
 
+class SharePatient(models.Model):
+    # Plaintext ID to lookup this data
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # The password is not stored in the db but is included in the share link
+    salt = models.CharField(max_length=150)
+    iterations = models.IntegerField(default=100000)
+
+    # Encrypted with the key derived from the password in the share link
+    key = models.CharField(max_length=300)
+
+    patient = models.ForeignKey(
+        to=Patient,
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        return self.id

@@ -1,8 +1,8 @@
 import os
-
 import logging
 import hashlib
 import base64
+import uuid
 
 import httpx
 import jwt
@@ -22,7 +22,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from .backend.models import (
     UserRegistration,
     Patient,
-    UserPatientKey
+    UserPatientKey,
+    SharePatient
 )
 
 logger = logging.getLogger(__name__)
@@ -219,3 +220,53 @@ def delete_patient(request, patient_id: str):
     patient.delete()
     return 204, None
 
+
+class SharePatientSchema(Schema):
+    token: str
+
+@api.post("/patients/{patient_id}/share", auth=AuthBearer(), response={200: SharePatientSchema, 404: None})
+def share_patient(request, patient_id: str):
+    try:
+        patient = Patient.objects.get(id=patient_id, users=request.auth.user)
+    except Patient.DoesNotExist:
+        return 404, None
+
+    # Shouldn't be able to share just by knowing the ID
+    try:
+        user_patient_key = UserPatientKey.objects.get(
+            user=request.auth.user,
+            patient=patient
+        )
+    except:
+        return 404, None
+
+    user_patient_key = base64.urlsafe_b64decode(user_patient_key.key.encode('utf-8'))
+    patient_key = Fernet(request.auth.key).decrypt(user_patient_key)
+
+    password = str(uuid.uuid4())
+
+    salt = os.urandom(32).hex()
+    iterations = 100000
+
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt.encode('utf-8'),
+        iterations=iterations,
+    )
+
+    share_key = base64.urlsafe_b64encode(kdf.derive(password.encode('utf-8')))
+
+    encrypted_patient_key = Fernet(share_key).encrypt(patient_key)
+    encrypted_patient_key = base64.urlsafe_b64encode(encrypted_patient_key).decode('utf-8')
+
+    share_record = SharePatient.objects.create(
+        salt=salt,
+        iterations=iterations,
+        key=encrypted_patient_key,
+        patient=patient
+    )
+
+    return {
+        "token": f"{share_record.id}.{password}"
+    }

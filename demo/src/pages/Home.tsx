@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
-import { FormEvent } from 'preact/compat';
+
+type Patient = {
+  id: string;
+  name: string;
+  birth_date: string;
+}
 
 async function login() {
   const config = await client.discovery(
@@ -96,10 +101,18 @@ async function updatePatient(patient: Patient) {
   return response.json();
 }
 
-type Patient = {
-  id: string;
-  name: string;
-  birth_date: string;
+async function sharePatient(id: string) {
+  const response = await fetch(`/api/patients/${id}/share`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const { token } = await response.json();
+
+  return token;
 }
 
 export function Home() {
@@ -183,6 +196,11 @@ export function Home() {
     setEditingBirthDate(null);
   }
 
+  async function onSharePatient(id: string) {
+    const token = await sharePatient(id);
+    prompt("Share this link:", `${window.location.origin}/share/${token}`);
+  }
+
 	return (
 		<div id="app" class="container">
       {token ?
@@ -245,7 +263,7 @@ export function Home() {
                         <button onClick={() => onStartEditPatient(patient)}>
                           Edit
                         </button>
-                        <button>Share</button>
+                        <button onClick={() => onSharePatient(patient.id)}>Share</button>
                         <button
                           class="pico-background-red"
                           onClick={() => onDeletePatient(patient.id)}>
