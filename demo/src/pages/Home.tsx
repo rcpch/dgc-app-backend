@@ -71,6 +71,15 @@ async function addPatient(name: string, birth_date: string) {
     return patient;
 }
 
+async function deletePatient(id: string) {
+  await fetch(`/api/patients/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage['access_token']}`,
+      }
+    });
+}
+
 export function Home() {
   const [token, setToken] = useState(localStorage.access_token);
   const [patients, setPatients] = useState([]);
@@ -105,12 +114,16 @@ export function Home() {
     if (token) {
       delete localStorage['access_token'];
       setToken('');
+      setPatients([]);
     } else {
       login();
     }
   };
 
-  console.log(patients);
+  async function onDeletePatient(id: string) {
+    await deletePatient(id);
+    setPatients(patients.filter(p => p.id !== id));
+  }
 
 	return (
 		<div id="app" class="container">
@@ -129,6 +142,7 @@ export function Home() {
               <tr>
                 <td>Name</td>
                 <td>Birth Date</td>
+                <td></td>
               </tr>
             </thead>
             <tbody>
@@ -136,6 +150,14 @@ export function Home() {
                 <tr key={patient.id}>
                   <td>{patient.name}</td>
                   <td>{patient.birth_date}</td>
+                  <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
+                    <button>Share</button>
+                    <button
+                      class="pico-background-red"
+                      onClick={() => onDeletePatient(patient.id)}>
+                        Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

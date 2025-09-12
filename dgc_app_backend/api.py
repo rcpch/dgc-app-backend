@@ -94,8 +94,6 @@ class PatientsSchema(Schema):
 
 @api.get("/patients", auth=AuthBearer(), response=PatientsSchema)
 def patients(request):
-    logger.info(f"Fetching patients for user {request.auth.user.id}")
-
     patients = Patient.objects.filter(users=request.auth.user)
 
     for patient in patients:
@@ -154,3 +152,22 @@ def add_patient(request, data: NewPatientSchema):
         "name": data.name,
         "birth_date": data.birth_date
     }
+
+@api.delete("/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
+def delete_patient(request, patient_id: str):
+    try:
+        patient = Patient.objects.get(id=patient_id, users=request.auth.user)
+    except Patient.DoesNotExist:
+        return 404, None
+
+    # Shouldn't be able to delete just by knowing the ID
+    try:
+        UserPatientKey.objects.get(
+            user=request.auth.user,
+            patient=patient
+        )
+    except:
+        return 404, None
+
+    patient.delete()
+    return 204, None
