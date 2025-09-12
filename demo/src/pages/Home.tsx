@@ -80,9 +80,35 @@ async function deletePatient(id: string) {
     });
 }
 
+async function updatePatient(patient: Patient) {
+  const body = { ...patient };
+  delete body.id;
+
+  const response = await fetch(`/api/patients/${patient.id}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(patient)
+  });
+
+  return response.json();
+}
+
+type Patient = {
+  id: string;
+  name: string;
+  birth_date: string;
+}
+
 export function Home() {
   const [token, setToken] = useState(localStorage.access_token);
-  const [patients, setPatients] = useState([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [editingBirthDate, setEditingBirthDate] = useState<string | null>(null);
 
   useEffect(() => {
     if(token) {
@@ -125,6 +151,38 @@ export function Home() {
     setPatients(patients.filter(p => p.id !== id));
   }
 
+  function onStartEditPatient(patient: Patient) {
+    setEditingId(patient.id);
+    setEditingName(patient.name);
+    setEditingBirthDate(patient.birth_date);
+  }
+
+  function onCancelEditPatient() {
+    setEditingId(null);
+    setEditingName(null);
+    setEditingBirthDate(null);
+  }
+
+  async function onSaveEditPatient(e: Event) {
+    e.preventDefault();
+
+    const patient = await updatePatient({
+      id: editingId!,
+      name: editingName!,
+      birth_date: editingBirthDate!
+    });
+
+    setPatients(patients =>
+      patients.map(p =>
+        p.id === editingId ? patient : p
+      )
+    );
+
+    setEditingId(null);
+    setEditingName(null);
+    setEditingBirthDate(null);
+  }
+
 	return (
 		<div id="app" class="container">
       {token ?
@@ -148,16 +206,54 @@ export function Home() {
             <tbody>
               {patients.map(patient => (
                 <tr key={patient.id}>
-                  <td>{patient.name}</td>
-                  <td>{patient.birth_date}</td>
-                  <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
-                    <button>Share</button>
-                    <button
-                      class="pico-background-red"
-                      onClick={() => onDeletePatient(patient.id)}>
-                        Delete
-                    </button>
+                  <td>
+                    {editingId === patient.id ? (
+                      <form onSubmit={onSaveEditPatient}>
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={e => setEditingName((e.target as HTMLInputElement).value)}
+                        />
+                      </form>
+                    ) : (
+                      patient.name
+                    )}
                   </td>
+                  <td>
+                    {editingId === patient.id ? (
+                      <input
+                        type="date"
+                        value={editingBirthDate}
+                        onChange={e => setEditingBirthDate((e.target as HTMLInputElement).value)}
+                      />
+                    ) : (
+                      patient.birth_date
+                    )}
+                  </td>
+                  <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
+                    {editingId === patient.id ? (
+                      <>
+                        <button onClick={onSaveEditPatient}>
+                          Save
+                        </button>
+                        <button class="secondary" onClick={onCancelEditPatient}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => onStartEditPatient(patient)}>
+                          Edit
+                        </button>
+                        <button>Share</button>
+                        <button
+                          class="pico-background-red"
+                          onClick={() => onDeletePatient(patient.id)}>
+                            Delete
+                        </button>
+                      </>
+                    )}
+                   </td>
                 </tr>
               ))}
             </tbody>

@@ -153,6 +153,53 @@ def add_patient(request, data: NewPatientSchema):
         "birth_date": data.birth_date
     }
 
+
+class UpdatePatientSchema(Schema):
+    name: str | None = None
+    birth_date: date | None = None
+
+@api.patch("/patients/{patient_id}", auth=AuthBearer(), response={200: PatientSchema, 404: None})
+def update_patient(request, patient_id: str, data: UpdatePatientSchema):
+    try:
+        patient = Patient.objects.get(id=patient_id, users=request.auth.user)
+    except Patient.DoesNotExist:
+        return 404, None
+
+    user_patient_key = UserPatientKey.objects.get(
+        user=request.auth.user,
+        patient=patient
+    ).key
+
+    user_patient_key = base64.urlsafe_b64decode(user_patient_key.encode('utf-8'))
+    patient_key = Fernet(request.auth.key).decrypt(user_patient_key)
+
+    f = Fernet(patient_key)
+
+    if data.name is not None:
+        encrypted_name = f.encrypt(data.name.encode('utf-8'))
+        encrypted_name = base64.urlsafe_b64encode(encrypted_name).decode('utf-8')
+        patient.name = encrypted_name
+
+    if data.birth_date is not None:
+        encrypted_birth_date = f.encrypt(data.birth_date.isoformat().encode('utf-8'))
+        encrypted_birth_date = base64.urlsafe_b64encode(encrypted_birth_date).decode('utf-8')
+        patient.birth_date = encrypted_birth_date
+
+    patient.save()
+
+    encrypted_name = base64.urlsafe_b64decode(patient.name.encode('utf-8'))
+    decrypted_name = f.decrypt(encrypted_name).decode('utf-8')
+
+    encrypted_birth_date = base64.urlsafe_b64decode(patient.birth_date.encode('utf-8'))
+    decrypted_birth_date = f.decrypt(encrypted_birth_date).decode('utf-8')
+    decrypted_birth_date = date.fromisoformat(decrypted_birth_date)
+
+    return 200, {
+        "id": patient.id,
+        "name": decrypted_name,
+        "birth_date": decrypted_birth_date
+    }
+
 @api.delete("/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
 def delete_patient(request, patient_id: str):
     try:
@@ -171,3 +218,4 @@ def delete_patient(request, patient_id: str):
 
     patient.delete()
     return 204, None
+
