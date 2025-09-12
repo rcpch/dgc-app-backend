@@ -1,7 +1,7 @@
 export type Patient = {
   id: string;
   name: string;
-  birth_date: string;
+  date_of_birth: string;
 };
 
 export async function testBackend() {
@@ -28,14 +28,14 @@ export async function getPatients() {
   return patients;
 }
 
-export async function addPatient(name: string, birth_date: string) {
+export async function addPatient(name: string, date_of_birth: string) {
   const response = await fetch("/api/patients", {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage['access_token']}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name, birth_date })
+      body: JSON.stringify({ name, date_of_birth })
     });
 
     const patient = await response.json();

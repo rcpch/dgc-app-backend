@@ -39,7 +39,7 @@ export function Home() {
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [editingBirthDate, setEditingBirthDate] = useState<string | null>(null);
+  const [editingDateOfBirth, setEditingDateOfBirth] = useState<string | null>(null);
 
   useEffect(() => {
     if(token) {
@@ -49,7 +49,7 @@ export function Home() {
     }
   }, [token]);
 
-  const sub = token ? JSON.parse(atob(token.split('.')[1])).sub : null;
+  const name = token ? JSON.parse(atob(token.split('.')[1])).unique_name : null;
 
   function onTestFormSubmit(e: Event) {
     e.preventDefault();
@@ -60,9 +60,9 @@ export function Home() {
     e.preventDefault();
 
     const name = (e.target as any).name.value;
-    const birth_date = (e.target as any).birth_date.value;
+    const date_of_birth = (e.target as any).date_of_birth.value;
 
-    const patient = await addPatient(name, birth_date);
+    const patient = await addPatient(name, date_of_birth);
     setPatients([...patients, patient]);
   }
 
@@ -85,13 +85,13 @@ export function Home() {
   function onStartEditPatient(patient: Patient) {
     setEditingId(patient.id);
     setEditingName(patient.name);
-    setEditingBirthDate(patient.birth_date);
+    setEditingDateOfBirth(patient.date_of_birth);
   }
 
   function onCancelEditPatient() {
     setEditingId(null);
     setEditingName(null);
-    setEditingBirthDate(null);
+    setEditingDateOfBirth(null);
   }
 
   async function onSaveEditPatient(e: Event) {
@@ -100,7 +100,7 @@ export function Home() {
     const patient = await updatePatient({
       id: editingId!,
       name: editingName!,
-      birth_date: editingBirthDate!
+      date_of_birth: editingDateOfBirth!
     });
 
     setPatients(patients =>
@@ -124,7 +124,7 @@ export function Home() {
       {token ?
         <>  
           <h3 id="sub">
-            {sub ? `Logged in as: ${sub}` : ''}
+            {name ? `Logged in as: ${name}` : ''}
           </h3>
           <hr />
           <form onSubmit={onTestFormSubmit}>
@@ -159,11 +159,11 @@ export function Home() {
                     {editingId === patient.id ? (
                       <input
                         type="date"
-                        value={editingBirthDate}
-                        onChange={e => setEditingBirthDate((e.target as HTMLInputElement).value)}
+                        value={editingDateOfBirth}
+                        onChange={e => setEditingDateOfBirth((e.target as HTMLInputElement).value)}
                       />
                     ) : (
-                      patient.birth_date
+                      patient.date_of_birth
                     )}
                   </td>
                   <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
@@ -197,7 +197,7 @@ export function Home() {
           <form onSubmit={onAddPatientFormSubmit}>
             <h4>Add new patient</h4>
             <input type="text" name="name" placeholder="Name" value="" required />
-            <input type="date" name="birth_date" placeholder="Birth Date" value="1970-01-01" required />
+            <input type="date" name="date_of_birth" placeholder="Birth Date" value="1970-01-01" required />
             <input type="submit" value="Add Patient" />
           </form>
           <hr />
