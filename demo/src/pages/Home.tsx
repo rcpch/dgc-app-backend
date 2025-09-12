@@ -137,6 +137,7 @@ export function Home() {
                 <td>Name</td>
                 <td>Birth Date</td>
                 <td></td>
+                <td></td>
               </tr>
             </thead>
             <tbody>
@@ -165,6 +166,20 @@ export function Home() {
                     ) : (
                       patient.date_of_birth
                     )}
+                  </td>
+                  <td>
+                    {patient.users && patient.users.length > 0 ? (
+                      <details>
+                        <summary style={{ cursor: 'pointer' }}>
+                          Shared with ({patient.users.length})
+                        </summary>
+                        <ul>
+                          {patient.users.map((user, index) => (
+                            <li key={index}>{user.name} ({user.email})</li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : ''}
                   </td>
                   <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
                     {editingId === patient.id ? (

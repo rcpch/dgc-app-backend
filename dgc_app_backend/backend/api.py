@@ -41,17 +41,32 @@ def hello(request):
     return request.auth.name
 
 
+class PatientUserSchema(Schema):
+    name: str
+    email: str
+
 class PatientSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
+    users: list[PatientUserSchema]
 
     @classmethod
     def from_encrypted_patient(cls, patient: Patient, patient_key: Fernet):
+        patient_users = UserPatient.objects.filter(patient=patient)
+        users = []
+
+        for patient_user in patient_users:
+            users.append(PatientUserSchema(
+                name=decrypt_str(patient_key, patient_user.encrypted_user_name),
+                email=decrypt_str(patient_key, patient_user.encrypted_user_email)
+            ))
+
         return cls(
             id=patient.id,
             name=decrypt_str(patient_key, patient.encrypted_name),
-            date_of_birth=date.fromisoformat(decrypt_str(patient_key, patient.encrypted_date_of_birth))
+            date_of_birth=date.fromisoformat(decrypt_str(patient_key, patient.encrypted_date_of_birth)),
+            users=users
         )
 
 class PatientsSchema(Schema):
@@ -93,11 +108,15 @@ def add_patient(request, data: NewPatientSchema):
     )
 
     encrypted_patient_key = encrypt_bytes(request.auth.key, patient_key)
+    encrypted_user_name = encrypt_str(patient_f, request.auth.name)
+    encrypted_user_email = encrypt_str(patient_f, request.auth.email)
 
     UserPatient.objects.create(
         user=request.auth.user,
         patient=patient,
-        encrypted_patient_key=encrypted_patient_key
+        encrypted_patient_key=encrypted_patient_key,
+        encrypted_user_name=encrypted_user_name,
+        encrypted_user_email=encrypted_user_email
     )
 
     ret = PatientSchema.from_encrypted_patient(patient, patient_f)
@@ -252,10 +271,15 @@ def get_patient_from_share(request, data: SharePatientSchema):
     # Re-encrypt the patient key for this user
     encrypted_patient_key = encrypt_bytes(request.auth.key, patient_key)
 
+    encrypted_user_name = encrypt_str(patient_key_f, request.auth.name)
+    encrypted_user_email = encrypt_str(patient_key_f, request.auth.email)
+
     UserPatient.objects.create(
         user=request.auth.user,
         patient=patient,
-        encrypted_patient_key=encrypted_patient_key
+        encrypted_patient_key=encrypted_patient_key,
+        encrypted_user_name=encrypted_user_name,
+        encrypted_user_email=encrypted_user_email
     )
 
     share_record.delete()

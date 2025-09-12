@@ -13,6 +13,7 @@ from .crypto import sha_256, derive_key, salt
 class AuthData:
     user: User
     name: str
+    email: str
     key: bytes
 
 class AuthBearer(HttpBearer):
@@ -47,5 +48,6 @@ class AuthBearer(HttpBearer):
       key = derive_key(claims["sub"], user.salt, user.iterations)
 
       name = claims["name"]
+      email = claims["unique_name"]
 
-      return AuthData(user, name, key)
+      return AuthData(user, name, email, key)

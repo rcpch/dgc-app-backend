@@ -29,6 +29,10 @@ class UserPatient(models.Model):
     # Encrypted with the key derived from the user ID
     encrypted_patient_key = models.CharField(max_length=300)
 
+    # Encrypted with the patient key - used for shared patients
+    encrypted_user_name = models.CharField(max_length=300)
+    encrypted_user_email = models.CharField(max_length=300)
+
     def decrypt_patient_key(self, user_key: Fernet) -> tuple[bytes, Fernet]:
         patient_key = decrypt_bytes(user_key, self.encrypted_patient_key)
         return (patient_key, Fernet(patient_key))
@@ -41,7 +45,7 @@ class Patient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     encrypted_name = models.CharField(max_length=300)
-    encrypted_date_of_birth = models.CharField(max_length=300) # date but encrypted
+    encrypted_date_of_birth = models.CharField(max_length=300)
 
     users = models.ManyToManyField(
         to=User,
@@ -64,7 +68,10 @@ class SharePatient(models.Model):
 
     # Encrypted with the key derived from the password in the share link
     encrypted_patient_key = models.CharField(max_length=300)
+
+    # Metadata about the share, also encrypted with the share key
     encrypted_sharer_name = models.CharField(max_length=300)
+    encrypted_sharer_email = models.CharField(max_length=300)
     encrypted_patient_name = models.CharField(max_length=300)
 
     def decrypt_patient_key(self, share_key: Fernet) -> tuple[bytes, Fernet]:
