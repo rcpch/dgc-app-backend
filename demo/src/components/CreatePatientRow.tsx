@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useRef } from "preact/hooks";
 
 type CreatePatientRowProps = {
   onSave: (name: string, date_of_birth: string) => void;
@@ -8,34 +8,42 @@ export function CreatePatientRow({ onSave }: CreatePatientRowProps) {
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('1970-01-01');
 
+  const formRef = useRef<HTMLFormElement>(null);
+
   function onSubmit(e: Event) {
     e.preventDefault();
-    onSave(name, dateOfBirth);
-    setName('');
-    setDateOfBirth('1970-01-01');
+
+    if(formRef.current!.reportValidity()) {
+      onSave(name, dateOfBirth);
+      setName('');
+      setDateOfBirth('1970-01-01');
+    }
   }
 
   return <tr key='create'>
-    <td>
-      <form onSubmit={onSubmit}>
+      <td>
+        <form onSubmit={onSubmit} ref={formRef}>
+          <input
+            required
+            type="text"
+            value={name}
+            title="Patient Name"
+            placeholder="Name"
+            onChange={e => setName((e.target as HTMLInputElement).value)}
+          />
+        </form>
+      </td>
+      <td>
         <input
-          type="text"
-          value={name}
-          onChange={e => setName((e.target as HTMLInputElement).value)}
+          type="date"
+          value={dateOfBirth}
+          onChange={e => setDateOfBirth((e.target as HTMLInputElement).value)}
         />
-      </form>
-    </td>
-    <td>
-       <input
-        type="date"
-        value={dateOfBirth}
-        onChange={e => setDateOfBirth((e.target as HTMLInputElement).value)}
-      />
-    </td>
-    <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
-      <button onClick={onSubmit}>
-        Save
-      </button>
-    </td>
-  </tr>;
+      </td>
+      <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
+        <button onClick={onSubmit}>
+          Save
+        </button>
+      </td>
+    </tr>;
 }

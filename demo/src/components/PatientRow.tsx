@@ -38,6 +38,7 @@ export function PatientRow({ patient, onSave, onDelete }: PatientRowProps) {
         {editing ? (
           <form onSubmit={onSubmit}>
             <input
+              required
               type="text"
               value={editingName}
               onChange={e => setEditingName((e.target as HTMLInputElement).value)}
