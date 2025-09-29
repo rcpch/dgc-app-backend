@@ -242,7 +242,8 @@ def delete_patient(request, organisation_id: str, patient_id: str):
 
 
 class InviteCreateSchema(Schema):
-    link: str
+    invite_id: UUID
+    token: str
 
 @api.post("/organisations/{organisation_id}/share", auth=AuthBearer(), response={200: InviteCreateSchema, 404: None})
 def create_invite(request, organisation_id: str):
@@ -258,45 +259,51 @@ def create_invite(request, organisation_id: str):
 
     encrypted_organisation_key = encrypt_bytes(share_key, organisation_key)
 
-    share_record = OrganisationInvite.objects.create(
+    invite = OrganisationInvite.objects.create(
         salt=salt,
         iterations=iterations,
         encrypted_organisation_key=encrypted_organisation_key,
         organisation=organisation
     )
 
-    url = reverse("api-1.0.0:invite_details", args=[str(share_record.id), password])
-
     return {
-        "link": url
+        "invite_id": invite.id,
+        "token": password
     }
 
+
+class OrganisationInviteDetailsRequestSchema(Schema):
+    token: str 
 
 class OrganisationInviteDetailsUserSchema(Schema):
     name: str
 
 class OrganisationInviteDetailsSchema(Schema):
-    organisation_name: str
+    organisation_id: UUID
+    organisation_name: str | None = None
     patient_count: int
     users: list[OrganisationInviteDetailsUserSchema]
 
-@api.get("/invites/{invite_id}/{token}", auth=AuthBearer(), url_name="invite_details", response={200: OrganisationInviteDetailsSchema, 401: None})
-def share_token_details(request, invite_id: str, token: str):
-    return 401, None
-    # try:
-    #     share_record = SharePatient.objects.get(id=share_id)
-    # except SharePatient.DoesNotExist:
-    #     return 401, None
+@api.post("/invites/{invite_id}/details", auth=AuthBearer(), response={200: OrganisationInviteDetailsSchema, 401: None})
+def organisation_invite_details(request, invite_id: str, data: OrganisationInviteDetailsRequestSchema):
+    try:
+        invite = OrganisationInvite.objects.get(id=invite_id)
+    except OrganisationInvite.DoesNotExist:
+        return 401, None
 
-    # share_key = derive_key(password, share_record.salt, share_record.iterations)
+    organisation_key = derive_key(data.token, invite.salt, invite.iterations)
 
-    # sharer_name = decrypt_str(share_key, share_record.encrypted_sharer_name)
-    # patient_name = decrypt_str(share_key, share_record.encrypted_patient_name)
+    organisation = invite.organisation
+    organisation_name = decrypt_str(Fernet(organisation_key), organisation.encrypted_name) if organisation.encrypted_name else None
 
-    # return 200, {
-    #     "sharer_name": sharer_name,
-    #     "patient_name": patient_name
-    # }
+    patient_count = organisation.patient_set.count()
+
+    return 200, OrganisationInviteDetailsSchema(
+        organisation_id=organisation.id,
+        organisation_name=organisation_name,
+        patient_count=patient_count,
+        users=[]
+    )
 
 
 # @api.post("/use-share-token", auth=AuthBearer(), response={200: PatientSchema, 401: None})

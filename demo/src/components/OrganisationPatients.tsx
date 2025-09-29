@@ -157,8 +157,14 @@ export function OrganisationPatientList({ organisation }: { organisation: Organi
   }
 
   async function onShareOrganisation() {
-    const link = await shareOrganisation(organisation.id);
-    prompt("Share this link:", window.location.origin + link);
+    const { invite_id, token } = await shareOrganisation(organisation.id);
+
+    const shareUrl = new URL(window.location.origin);
+    shareUrl.pathname = "/demo/invite";
+    shareUrl.searchParams.set("invite_id", invite_id);
+    shareUrl.searchParams.set("token", token);
+
+    prompt("Share this link:", shareUrl.toString());
   }
 
   return <div>

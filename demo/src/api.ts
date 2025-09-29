@@ -100,7 +100,12 @@ export async function updatePatient(organisation_id: string, patient: Patient): 
   return response.json();
 }
 
-export async function shareOrganisation(organisation_id: string): Promise<string> {
+export type InviteLink = {
+  invite_id: string;
+  token: string;
+}
+
+export async function shareOrganisation(organisation_id: string): Promise<InviteLink> {
   const response = await fetch(`/api/organisations/${organisation_id}/share`, {
     method: 'POST',
     headers: {
@@ -109,18 +114,20 @@ export async function shareOrganisation(organisation_id: string): Promise<string
     }
   });
 
-  const { link } = await response.json();
+  const { invite_id, token } = await response.json();
 
-  return link;
+  return { invite_id, token };
 }
 
-export type ShareDetails = {
-  sharer_name: string;
-  patient_name: string;
+export type InviteDetails = {
+  organisation_id: string;
+  organisation_name: string | null;
+  patient_count: number;
+  users: { name: string }[];
 }
 
-export async function getShareDetails(token: string): Promise<ShareDetails> {
-  const response = await fetch(`/api/share-token-details`, {
+export async function getInviteDetails(invite_id: string, token: string): Promise<InviteDetails> {
+  const response = await fetch(`/api/invites/${invite_id}/details`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`,
@@ -129,9 +136,9 @@ export async function getShareDetails(token: string): Promise<ShareDetails> {
     body: JSON.stringify({ token })
   });
 
-  const { sharer_name, patient_name } = await response.json();
+  const { organisation_id, organisation_name, patient_count, users } = await response.json();
 
-  return { sharer_name, patient_name };
+  return { organisation_id, organisation_name, patient_count, users };
 }
 
 export async function addSharedPatient(token: string) {
