@@ -142,7 +142,7 @@ export async function getInviteDetails(invite_id: string, token: string): Promis
 }
 
 export async function redeemInvite(invite_id: string, token: string) {
-  const response = await fetch(`/api/invites/${invite_id}/redeem`, {
+  await fetch(`/api/invites/${invite_id}/redeem`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`,
@@ -150,8 +150,4 @@ export async function redeemInvite(invite_id: string, token: string) {
     },
     body: JSON.stringify({ token })
   });
-
-  const { patient } = await response.json();
-
-  return patient;
 }
