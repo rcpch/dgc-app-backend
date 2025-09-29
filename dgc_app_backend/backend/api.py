@@ -7,6 +7,7 @@ from uuid import UUID
 from typing import Tuple
 
 from django.conf import settings
+from django.urls import reverse
 
 from ninja import NinjaAPI, Schema
 from ninja.security import HttpBearer
@@ -127,9 +128,9 @@ def get_organisation_or_404(auth: AuthData, organisation_id: str) -> Tuple[Organ
             organisation__id=organisation_id
         )
 
-        (_, organisation_key_f) = registration.decrypt_organisation_key(auth.key)
+        (organisation_key, organisation_key_f) = registration.decrypt_organisation_key(auth.key)
 
-        return (registration.organisation, organisation_key_f)
+        return (registration.organisation, organisation_key, organisation_key_f)
     except UserOrganisation.DoesNotExist:
         return 404, None
 
@@ -181,7 +182,7 @@ class NewPatientSchema(Schema):
 
 @api.post("/organisations/{organisation_id}/patients", auth=AuthBearer(), response={200: PatientSchema, 404: None})
 def add_patient(request, organisation_id: str, data: NewPatientSchema):
-    (organisation, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
+    (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
     encrypted_name = encrypt_str(organisation_key_f, data.name)
     encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
@@ -201,7 +202,7 @@ class UpdatePatientSchema(Schema):
 
 @api.patch("/organisations/{organisation_id}/patients/{patient_id}", auth=AuthBearer(), response={200: PatientSchema, 404: None})
 def update_patient(request, organisation_id: str, patient_id: str, data: UpdatePatientSchema):
-    (organisation, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
+    (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
     try:
         patient = Patient.objects.get(
@@ -225,7 +226,7 @@ def update_patient(request, organisation_id: str, patient_id: str, data: UpdateP
 
 @api.delete("/organisations/{organisation_id}/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
 def delete_patient(request, organisation_id: str, patient_id: str):
-    (organisation, _) = get_organisation_or_404(request.auth, organisation_id)
+    (organisation, _, _) = get_organisation_or_404(request.auth, organisation_id)
 
     # Shouldn't be able to delete just by knowing the ID
     try:
@@ -240,77 +241,62 @@ def delete_patient(request, organisation_id: str, patient_id: str):
     return 204, None
 
 
-# class SharePatientSchema(Schema):
-#     token: str
+class InviteCreateSchema(Schema):
+    link: str
 
-# @api.post("/patients/{patient_id}/share", auth=AuthBearer(), response={200: SharePatientSchema, 404: None})
-# def share_patient(request, patient_id: str):
-#     try:
-#         patient = Patient.objects.get(id=patient_id)
-#     except Patient.DoesNotExist:
-#         return 404, None
+@api.post("/organisations/{organisation_id}/share", auth=AuthBearer(), response={200: InviteCreateSchema, 404: None})
+def create_invite(request, organisation_id: str):
+    # Shouldn't be able to share just by knowing the ID
+    (organisation, organisation_key, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
-#     # Shouldn't be able to share just by knowing the ID
-#     try:
-#         user_patient = UserPatient.objects.get(
-#             user=request.auth.user,
-#             patient=patient
-#         )
-#     except:
-#         return 404, None
+    password = str(uuid.uuid4())
 
-#     (patient_key, patient_key_f) = user_patient.decrypt_patient_key(request.auth.key)
+    salt = os.urandom(32).hex()
+    iterations = 100000
 
-#     decrypted_patient = PatientSchema.from_encrypted_patient(patient, patient_key_f)
+    share_key = derive_key(password, salt, iterations)
 
-#     password = str(uuid.uuid4())
+    encrypted_organisation_key = encrypt_bytes(share_key, organisation_key)
 
-#     salt = os.urandom(32).hex()
-#     iterations = 100000
+    share_record = OrganisationInvite.objects.create(
+        salt=salt,
+        iterations=iterations,
+        encrypted_organisation_key=encrypted_organisation_key,
+        organisation=organisation
+    )
 
-#     share_key = derive_key(password, salt, iterations)
+    url = reverse("api-1.0.0:invite_details", args=[str(share_record.id), password])
 
-#     encrypted_patient_key = encrypt_bytes(share_key, patient_key)
-#     encrypted_sharer_name = encrypt_str(share_key, request.auth.name)
-#     encrypted_patient_name = encrypt_str(share_key, decrypted_patient.name)
-
-#     share_record = SharePatient.objects.create(
-#         salt=salt,
-#         iterations=iterations,
-#         encrypted_patient_key=encrypted_patient_key,
-#         encrypted_sharer_name=encrypted_sharer_name,
-#         encrypted_patient_name=encrypted_patient_name,
-#         patient=patient
-#     )
-
-#     return {
-#         "token": f"{share_record.id}.{password}"
-#     }
+    return {
+        "link": url
+    }
 
 
-# class ShareTokenDetails(Schema):
-#     sharer_name: str
-#     patient_name: str
+class OrganisationInviteDetailsUserSchema(Schema):
+    name: str
 
-# @api.post("/share-token-details", auth=AuthBearer(), response={200: ShareTokenDetails, 401: None})
-# def share_token_details(request, data: SharePatientSchema):
-#     share_id = data.token.split('.')[0]
-#     password = data.token.split('.')[1]
+class OrganisationInviteDetailsSchema(Schema):
+    organisation_name: str
+    patient_count: int
+    users: list[OrganisationInviteDetailsUserSchema]
 
-#     try:
-#         share_record = SharePatient.objects.get(id=share_id)
-#     except SharePatient.DoesNotExist:
-#         return 401, None
+@api.get("/invites/{invite_id}/{token}", auth=AuthBearer(), url_name="invite_details", response={200: OrganisationInviteDetailsSchema, 401: None})
+def share_token_details(request, invite_id: str, token: str):
+    return 401, None
+    # try:
+    #     share_record = SharePatient.objects.get(id=share_id)
+    # except SharePatient.DoesNotExist:
+    #     return 401, None
 
-#     share_key = derive_key(password, share_record.salt, share_record.iterations)
+    # share_key = derive_key(password, share_record.salt, share_record.iterations)
 
-#     sharer_name = decrypt_str(share_key, share_record.encrypted_sharer_name)
-#     patient_name = decrypt_str(share_key, share_record.encrypted_patient_name)
+    # sharer_name = decrypt_str(share_key, share_record.encrypted_sharer_name)
+    # patient_name = decrypt_str(share_key, share_record.encrypted_patient_name)
 
-#     return 200, {
-#         "sharer_name": sharer_name,
-#         "patient_name": patient_name
-#     }
+    # return 200, {
+    #     "sharer_name": sharer_name,
+    #     "patient_name": patient_name
+    # }
 
 
 # @api.post("/use-share-token", auth=AuthBearer(), response={200: PatientSchema, 401: None})

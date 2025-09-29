@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient, Organisation, getOrganisations, createDefaultOrganisation } from '../api';
+import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation } from '../api';
 
 async function login() {
   const config = await client.discovery(
@@ -125,8 +125,8 @@ export function Home() {
   }
 
   async function onSharePatient(id: string) {
-    const token = await sharePatient(id);
-    prompt("Share this link:", `${window.location.origin}/demo/share?token=${token}`);
+    const link = await shareOrganisation(organisation.id);
+    prompt("Share this link:", link);
   }
 
 	return (

@@ -100,8 +100,8 @@ export async function updatePatient(organisation_id: string, patient: Patient): 
   return response.json();
 }
 
-export async function sharePatient(id: string): Promise<string> {
-  const response = await fetch(`/api/patients/${id}/share`, {
+export async function shareOrganisation(organisation_id: string): Promise<string> {
+  const response = await fetch(`/api/organisations/${organisation_id}/share`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`,
@@ -109,9 +109,9 @@ export async function sharePatient(id: string): Promise<string> {
     }
   });
 
-  const { token } = await response.json();
+  const { link } = await response.json();
 
-  return token;
+  return link;
 }
 
 export type ShareDetails = {
