@@ -158,37 +158,36 @@ def patients(request, organisation_id: str):
     return {"patients": ret}
 
 
-# class NewPatientSchema(Schema):
-#     name: str
-#     date_of_birth: date
+class NewPatientSchema(Schema):
+    name: str
+    date_of_birth: date
 
-# @api.post("/patients", auth=AuthBearer(), response=PatientSchema)
-# def add_patient(request, data: NewPatientSchema):
-#     patient_key = Fernet.generate_key()
-#     patient_f = Fernet(patient_key)
+@api.post("/organisations/{organisation_id}/patients", auth=AuthBearer(), response={200: PatientSchema, 404: None})
+def add_patient(request, organisation_id: str, data: NewPatientSchema):
+    try:
+        registration = UserOrganisation.objects.get(
+            user=request.auth.user,
+            organisation__id=organisation_id
+        )
+    except UserOrganisation.DoesNotExist:
+        return 404, None
 
-#     encrypted_name = encrypt_str(patient_f, data.name)
-#     encrypted_date_of_birth = encrypt_str(patient_f, data.date_of_birth.isoformat())
+    (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
 
-#     patient = Patient.objects.create(
-#         encrypted_name=encrypted_name,
-#         encrypted_date_of_birth=encrypted_date_of_birth
-#     )
+    encrypted_name = encrypt_str(organisation_key_f, data.name)
+    encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
 
-#     encrypted_patient_key = encrypt_bytes(request.auth.key, patient_key)
-#     encrypted_user_name = encrypt_str(patient_f, request.auth.name)
-#     encrypted_user_email = encrypt_str(patient_f, request.auth.email)
+    patient = Patient.objects.create(
+        encrypted_name=encrypted_name,
+        encrypted_date_of_birth=encrypted_date_of_birth,
+        organisation=registration.organisation
+    )
 
-#     UserPatient.objects.create(
-#         user=request.auth.user,
-#         patient=patient,
-#         encrypted_patient_key=encrypted_patient_key,
-#         encrypted_user_name=encrypted_user_name,
-#         encrypted_user_email=encrypted_user_email
-#     )
-
-#     ret = PatientSchema.from_encrypted_patient(patient, patient_f)
-#     return ret
+    return PatientSchema(
+        id=patient.id,
+        name=data.name,
+        date_of_birth=data.date_of_birth
+    )
 
 
 # class UpdatePatientSchema(Schema):

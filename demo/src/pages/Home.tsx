@@ -36,7 +36,7 @@ async function login() {
 export function Home() {
   const [token, setToken] = useState(localStorage.access_token);
 
-  const [organisations, setOrganisations] = useState<Organisation[]>([]);
+  const [organisation, setOrganisation] = useState<Organisation | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,18 +46,15 @@ export function Home() {
   useEffect(() => {
     if(token) {
       getOrganisations().then((organisations) => {
-        setOrganisations(organisations);
-
         if(organisations.length === 0) {
-          createDefaultOrganisation().then((organisation) => {
-            setOrganisations([organisation]);
-          });
+          createDefaultOrganisation().then(setOrganisation);
         } else {
+          setOrganisation(organisations[0]);
           getPatients(organisations[0].id).then(setPatients);
         }
       });
     } else {
-      setOrganisations([]);
+      setOrganisation(null);
       setPatients([]);
     }
   }, [token]);
@@ -75,7 +72,7 @@ export function Home() {
     const name = (e.target as any).name.value;
     const date_of_birth = (e.target as any).date_of_birth.value;
 
-    const patient = await addPatient(name, date_of_birth);
+    const patient = await addPatient(organisation.id, name, date_of_birth);
     setPatients([...patients, patient]);
   }
 

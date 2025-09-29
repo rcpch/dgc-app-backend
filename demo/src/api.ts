@@ -48,8 +48,8 @@ export async function createDefaultOrganisation(): Promise<Organisation> {
   return organisation;
 }
 
-export async function getPatients(organisationId: string): Promise<Patient[]> {
-  const response = await fetch(`/api/organisations/${organisationId}/patients`, {
+export async function getPatients(organisation_id: string): Promise<Patient[]> {
+  const response = await fetch(`/api/organisations/${organisation_id}/patients`, {
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`
     }
@@ -60,8 +60,8 @@ export async function getPatients(organisationId: string): Promise<Patient[]> {
   return patients;
 }
 
-export async function addPatient(name: string, date_of_birth: string): Promise<Patient> {
-  const response = await fetch("/api/patients", {
+export async function addPatient(organisation_id: string, name: string, date_of_birth: string): Promise<Patient> {
+  const response = await fetch(`/api/organisations/${organisation_id}/patients`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage['access_token']}`,
