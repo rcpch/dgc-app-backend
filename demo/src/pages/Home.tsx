@@ -88,7 +88,7 @@ export function Home() {
   };
 
   async function onDeletePatient(id: string) {
-    await deletePatient(id);
+    await deletePatient(organisation.id, id);
     setPatients(patients.filter(p => p.id !== id));
   }
 

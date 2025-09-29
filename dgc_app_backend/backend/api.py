@@ -223,24 +223,21 @@ def update_patient(request, organisation_id: str, patient_id: str, data: UpdateP
 
     return 200, ret
 
-# @api.delete("/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
-# def delete_patient(request, patient_id: str):
-#     try:
-#         patient = Patient.objects.get(id=patient_id)
-#     except Patient.DoesNotExist:
-#         return 404, None
+@api.delete("/organisations/{organisation_id}/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
+def delete_patient(request, organisation_id: str, patient_id: str):
+    (organisation, _) = get_organisation_or_404(request.auth, organisation_id)
 
-#     # Shouldn't be able to delete just by knowing the ID
-#     try:
-#         UserPatient.objects.get(
-#             user=request.auth.user,
-#             patient=patient
-#         )
-#     except:
-#         return 404, None
+    # Shouldn't be able to delete just by knowing the ID
+    try:
+        patient = Patient.objects.get(
+            id=patient_id,
+            organisation=organisation
+        )
+    except Patient.DoesNotExist:
+        return 404, None
 
-#     patient.delete()
-#     return 204, None
+    patient.delete()
+    return 204, None
 
 
 # class SharePatientSchema(Schema):

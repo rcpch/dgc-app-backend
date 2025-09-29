@@ -75,8 +75,8 @@ export async function addPatient(organisation_id: string, name: string, date_of_
     return patient;
 }
 
-export async function deletePatient(id: string): Promise<void> {
-  await fetch(`/api/patients/${id}`, {
+export async function deletePatient(organisation_id: string, id: string): Promise<void> {
+  await fetch(`/api/organisations/${organisation_id}/patients/${id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${localStorage['access_token']}`,
