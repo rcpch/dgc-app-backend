@@ -1,24 +1,22 @@
 import { useState, useEffect } from "preact/hooks";
-import { addSharedPatient, getInviteDetails, InviteDetails } from "../api";
+import { redeemInvite, getInviteDetails, InviteDetails } from "../api";
 
-const shareToken = new URL(window.location.href).searchParams.get("token")!;
+const params = new URL(window.location.href).searchParams;
 
-async function onAddSharedPatient() {
-  await addSharedPatient(shareToken);
-  window.location.href = '/demo/';
-}
+const invite_id = params.get("invite_id")!;
+const token = params.get("token")!;
 
 export function Invite() {
   const [inviteDetails, setInviteDetails] = useState<InviteDetails | null>(null);
 
   useEffect(() => {
-    const params = new URL(window.location.href).searchParams;
-
-    const invite_id = params.get("invite_id")!;
-    const token = params.get("token")!;
-
     getInviteDetails(invite_id, token).then(setInviteDetails);
   }, []);
+
+  async function onAddSharedPatient() {
+    await redeemInvite(invite_id, token);
+    window.location.href = '/demo/';
+  }
 
   return (
     <div class="container">

@@ -141,8 +141,8 @@ export async function getInviteDetails(invite_id: string, token: string): Promis
   return { organisation_id, organisation_name, patient_count, users };
 }
 
-export async function addSharedPatient(token: string) {
-  const response = await fetch(`/api/use-share-token`, {
+export async function redeemInvite(invite_id: string, token: string) {
+  const response = await fetch(`/api/invites/${invite_id}/redeem`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`,

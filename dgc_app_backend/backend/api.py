@@ -101,14 +101,14 @@ def add_organisation(request, data: CreateOrganisationSchema):
 
     encrypted_organisation_key = encrypt_bytes(request.auth.key, organisation_key)
 
-    encrypyed_user_name = encrypt_str(organisation_f, request.auth.name)
+    encrypted_user_name = encrypt_str(organisation_f, request.auth.name)
     encrypted_user_email = encrypt_str(organisation_f, request.auth.email)
 
     UserOrganisation.objects.create(
         user=request.auth.user,
         organisation=organisation,
         encrypted_organisation_key=encrypted_organisation_key,
-        encrypted_user_name=encrypyed_user_name,
+        encrypted_user_name=encrypted_user_name,
         encrypted_user_email=encrypted_user_email
     )
 
@@ -306,44 +306,35 @@ def organisation_invite_details(request, invite_id: str, data: OrganisationInvit
     )
 
 
-# @api.post("/use-share-token", auth=AuthBearer(), response={200: PatientSchema, 401: None})
-# def get_patient_from_share(request, data: SharePatientSchema):
-#     share_id = data.token.split('.')[0]
-#     password = data.token.split('.')[1]
+@api.post("/invites/{invite_id}/redeem", auth=AuthBearer(), response={204: None, 401: None})
+def get_patient_from_share(request, invite_id: str, data: OrganisationInviteDetailsRequestSchema):
+    try:
+        invite = OrganisationInvite.objects.get(id=invite_id)
+    except OrganisationInvite.DoesNotExist:
+        return 401, None
 
-#     try:
-#         share_record = SharePatient.objects.get(id=share_id)
-#     except SharePatient.DoesNotExist:
-#         return 401, None
+    share_key = derive_key(data.token, invite.salt, invite.iterations)
+    (organisation_key, organisation_key_f) = invite.decrypt_organisation_key(share_key)
 
-#     share_key = derive_key(password, share_record.salt, share_record.iterations)
-#     (patient_key, patient_key_f) = share_record.decrypt_patient_key(share_key)
+    organisation = invite.organisation
 
-#     # Find the patient
-#     try:
-#         patient = Patient.objects.get(id=share_record.patient.id)
-#     except Patient.DoesNotExist:
-#         return 401, None
+    # Check we have the right organisation key (throws if key invalid)
+    decrypt_str(organisation_key_f, organisation.encrypted_name) if organisation.encrypted_name else None
 
-#     # Check we have the right patient key (throws if key invalid)
-#     decrypt_str(patient_key_f, patient.encrypted_name)
+    # Re-encrypt the organisation key for this user
+    encrypted_organisation_key = encrypt_bytes(request.auth.key, organisation_key)
 
-#     # Re-encrypt the patient key for this user
-#     encrypted_patient_key = encrypt_bytes(request.auth.key, patient_key)
+    encrypted_user_name = encrypt_str(organisation_key_f, request.auth.name)
+    encrypted_user_email = encrypt_str(organisation_key_f, request.auth.email)
 
-#     encrypted_user_name = encrypt_str(patient_key_f, request.auth.name)
-#     encrypted_user_email = encrypt_str(patient_key_f, request.auth.email)
+    UserOrganisation.objects.create(
+        user=request.auth.user,
+        organisation=organisation,
+        encrypted_organisation_key=encrypted_organisation_key,
+        encrypted_user_name=encrypted_user_name,
+        encrypted_user_email=encrypted_user_email
+    )
 
-#     UserPatient.objects.create(
-#         user=request.auth.user,
-#         patient=patient,
-#         encrypted_patient_key=encrypted_patient_key,
-#         encrypted_user_name=encrypted_user_name,
-#         encrypted_user_email=encrypted_user_email
-#     )
+    invite.delete()
 
-#     share_record.delete()
-
-#     ret = PatientSchema.from_encrypted_patient(patient, patient_key_f)
-
-#     return 200, ret 
+    return 204, None
