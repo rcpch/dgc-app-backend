@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
 import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation } from '../api';
+import { OrganisationPatientList } from '../components/OrganisationPatients';
 
 async function login() {
   const config = await client.discovery(
@@ -36,26 +37,19 @@ async function login() {
 export function Home() {
   const [token, setToken] = useState(localStorage.access_token);
 
-  const [organisation, setOrganisation] = useState<Organisation | null>(null);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState<string | null>(null);
-  const [editingDateOfBirth, setEditingDateOfBirth] = useState<string | null>(null);
+  const [organisations, setOrganisations] = useState<Organisation[]>([]);
 
   useEffect(() => {
     if(token) {
       getOrganisations().then((organisations) => {
         if(organisations.length === 0) {
-          createDefaultOrganisation().then(setOrganisation);
+          createDefaultOrganisation().then(org => setOrganisations([org]));
         } else {
-          setOrganisation(organisations[0]);
-          getPatients(organisations[0].id).then(setPatients);
+          setOrganisations(organisations);
         }
       });
     } else {
-      setOrganisation(null);
-      setPatients([]);
+      setOrganisations([]);
     }
   }, [token]);
 
@@ -66,68 +60,16 @@ export function Home() {
     testBackend();
   }
 
-  async function onAddPatientFormSubmit(e: Event) {
-    e.preventDefault();
-
-    const name = (e.target as any).name.value;
-    const date_of_birth = (e.target as any).date_of_birth.value;
-
-    const patient = await addPatient(organisation.id, name, date_of_birth);
-    setPatients([...patients, patient]);
-  }
-
   function onLoginFormSubmit(e: Event) {
     e.preventDefault();
     if (token) {
       delete localStorage['access_token'];
       setToken('');
-      setPatients([]);
+      setOrganisations([]);
     } else {
       login();
     }
   };
-
-  async function onDeletePatient(id: string) {
-    await deletePatient(organisation.id, id);
-    setPatients(patients.filter(p => p.id !== id));
-  }
-
-  function onStartEditPatient(patient: Patient) {
-    setEditingId(patient.id);
-    setEditingName(patient.name);
-    setEditingDateOfBirth(patient.date_of_birth);
-  }
-
-  function onCancelEditPatient() {
-    setEditingId(null);
-    setEditingName(null);
-    setEditingDateOfBirth(null);
-  }
-
-  async function onSaveEditPatient(e: Event) {
-    e.preventDefault();
-
-    const patient = await updatePatient(organisation.id, {
-      id: editingId!,
-      name: editingName!,
-      date_of_birth: editingDateOfBirth!
-    });
-
-    setPatients(patients =>
-      patients.map(p =>
-        p.id === editingId ? patient : p
-      )
-    );
-
-    setEditingId(null);
-    setEditingName(null);
-    setEditingDateOfBirth(null);
-  }
-
-  async function onSharePatient(id: string) {
-    const link = await shareOrganisation(organisation.id);
-    prompt("Share this link:", link);
-  }
 
 	return (
 		<div id="app" class="container">
@@ -141,96 +83,17 @@ export function Home() {
             <input type="submit" value="Test Backend" />
           </form>
           <hr />
-          <table>
-            <thead>
-              <tr>
-                <td>Name</td>
-                <td>Birth Date</td>
-                <td></td>
-                <td></td>
-              </tr>
-            </thead>
-            <tbody>
-              {patients.map(patient => (
-                <tr key={patient.id}>
-                  <td>
-                    {editingId === patient.id ? (
-                      <form onSubmit={onSaveEditPatient}>
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={e => setEditingName((e.target as HTMLInputElement).value)}
-                        />
-                      </form>
-                    ) : (
-                      patient.name
-                    )}
-                  </td>
-                  <td>
-                    {editingId === patient.id ? (
-                      <input
-                        type="date"
-                        value={editingDateOfBirth}
-                        onChange={e => setEditingDateOfBirth((e.target as HTMLInputElement).value)}
-                      />
-                    ) : (
-                      patient.date_of_birth
-                    )}
-                  </td>
-                  <td>
-                    {patient.users && patient.users.length > 0 ? (
-                      <details>
-                        <summary style={{ cursor: 'pointer' }}>
-                          Shared with ({patient.users.length})
-                        </summary>
-                        <ul>
-                          {patient.users.map((user, index) => (
-                            <li key={index}>{user.name} ({user.email})</li>
-                          ))}
-                        </ul>
-                      </details>
-                    ) : ''}
-                  </td>
-                  <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
-                    {editingId === patient.id ? (
-                      <>
-                        <button onClick={onSaveEditPatient}>
-                          Save
-                        </button>
-                        <button class="secondary" onClick={onCancelEditPatient}>
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => onStartEditPatient(patient)}>
-                          Edit
-                        </button>
-                        <button onClick={() => onSharePatient(patient.id)}>Share</button>
-                        <button
-                          class="pico-background-red"
-                          onClick={() => onDeletePatient(patient.id)}>
-                            Delete
-                        </button>
-                      </>
-                    )}
-                   </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <form onSubmit={onAddPatientFormSubmit}>
-            <h4>Add new patient</h4>
-            <input type="text" name="name" placeholder="Name" value="" required />
-            <input type="date" name="date_of_birth" placeholder="Birth Date" value="1970-01-01" required />
-            <input type="submit" value="Add Patient" />
-          </form>
-          <hr />
+          {organisations.map(organisation => (
+            <>
+              <OrganisationPatientList key={organisation.id} organisation={organisation} />
+              <hr />
+            </> 
+          ))}
         </>
       : ''}
 			<form onSubmit={onLoginFormSubmit}>
 				<input type="submit" value={token ? 'Logout' : 'Login'} />
 			</form>
-			</div>
+    </div>
 	);
 }
