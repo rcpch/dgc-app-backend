@@ -52,9 +52,10 @@ export function Home() {
           createDefaultOrganisation().then((organisation) => {
             setOrganisations([organisation]);
           });
+        } else {
+          getPatients(organisations[0].id).then(setPatients);
         }
       });
-      getPatients().then(setPatients);
     } else {
       setOrganisations([]);
       setPatients([]);

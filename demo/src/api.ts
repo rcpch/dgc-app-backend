@@ -48,8 +48,8 @@ export async function createDefaultOrganisation(): Promise<Organisation> {
   return organisation;
 }
 
-export async function getPatients(): Promise<Patient[]> {
-  const response = await fetch("/api/patients", {
+export async function getPatients(organisationId: string): Promise<Patient[]> {
+  const response = await fetch(`/api/organisations/${organisationId}/patients`, {
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`
     }

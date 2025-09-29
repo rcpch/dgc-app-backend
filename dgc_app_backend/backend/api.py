@@ -117,53 +117,45 @@ def add_organisation(request, data: CreateOrganisationSchema):
     )
 
 
-# class PatientUserSchema(Schema):
-#     name: str
-#     email: str
+class PatientUserSchema(Schema):
+    name: str
+    email: str
 
-# class PatientSchema(Schema):
-#     id: UUID
-#     name: str
-#     date_of_birth: date
-#     users: list[PatientUserSchema]
+class PatientSchema(Schema):
+    id: UUID
+    name: str
+    date_of_birth: date
 
-#     @classmethod
-#     def from_encrypted_patient(cls, patient: Patient, patient_key: Fernet):
-#         patient_users = UserPatient.objects.filter(patient=patient)
-#         users = []
+class PatientsSchema(Schema):
+    patients: list[PatientSchema]
 
-#         for patient_user in patient_users:
-#             users.append(PatientUserSchema(
-#                 name=decrypt_str(patient_key, patient_user.encrypted_user_name),
-#                 email=decrypt_str(patient_key, patient_user.encrypted_user_email)
-#             ))
+@api.get("/organisations/{organisation_id}/patients", auth=AuthBearer(), response={200: PatientsSchema, 404: None})
+def patients(request, organisation_id: str):
+    try:
+        registration = UserOrganisation.objects.get(
+            user=request.auth.user,
+            organisation__id=organisation_id
+        )
+    except UserOrganisation.DoesNotExist:
+        return 404, None
 
-#         return cls(
-#             id=patient.id,
-#             name=decrypt_str(patient_key, patient.encrypted_name),
-#             date_of_birth=date.fromisoformat(decrypt_str(patient_key, patient.encrypted_date_of_birth)),
-#             users=users
-#         )
+    (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
 
-# class PatientsSchema(Schema):
-#     patients: list[PatientSchema]
+    ret: list[PatientSchema] = []
 
-# @api.get("/patients", auth=AuthBearer(), response=PatientsSchema)
-# def patients(request):
-#     ret: list[PatientSchema] = []
-#     patients = Patient.objects.filter(users=request.auth.user)
+    for patient in registration.organisation.patient_set.all():
+        patient_name = decrypt_str(organisation_key_f, patient.encrypted_name)
 
-#     for patient in patients:
-#         user_patient = UserPatient.objects.get(
-#             user=request.auth.user,
-#             patient=patient
-#         )
+        patient_dob_str = decrypt_str(organisation_key_f, patient.encrypted_date_of_birth)
+        patient_dob = date.fromisoformat(patient_dob_str)
 
-#         (_, patient_key) = user_patient.decrypt_patient_key(request.auth.key)
+        ret.append(PatientSchema(
+            id=patient.id,
+            name=patient_name,
+            date_of_birth=patient_dob
+        ))
 
-#         ret.append(PatientSchema.from_encrypted_patient(patient, patient_key))
-
-#     return {"patients": ret}
+    return {"patients": ret}
 
 
 # class NewPatientSchema(Schema):
