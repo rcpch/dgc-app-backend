@@ -107,7 +107,7 @@ export function Home() {
   async function onSaveEditPatient(e: Event) {
     e.preventDefault();
 
-    const patient = await updatePatient({
+    const patient = await updatePatient(organisation.id, {
       id: editingId!,
       name: editingName!,
       date_of_birth: editingDateOfBirth!
@@ -121,7 +121,7 @@ export function Home() {
 
     setEditingId(null);
     setEditingName(null);
-    setEditingBirthDate(null);
+    setEditingDateOfBirth(null);
   }
 
   async function onSharePatient(id: string) {

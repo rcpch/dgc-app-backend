@@ -4,6 +4,7 @@ import uuid
 
 from datetime import date
 from uuid import UUID
+from typing import Tuple
 
 from django.conf import settings
 
@@ -25,7 +26,10 @@ from .crypto import (
     encrypt_str,
     decrypt_bytes
 )
-from .auth import AuthBearer
+from .auth import (
+    AuthBearer,
+    AuthData
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +120,18 @@ def add_organisation(request, data: CreateOrganisationSchema):
         )]
     )
 
+def get_organisation_or_404(auth: AuthData, organisation_id: str) -> Tuple[Organisation, Fernet] | Tuple[404, None]:
+    try:
+        registration = UserOrganisation.objects.get(
+            user=auth.user,
+            organisation__id=organisation_id
+        )
+
+        (_, organisation_key_f) = registration.decrypt_organisation_key(auth.key)
+
+        return (registration.organisation, organisation_key_f)
+    except UserOrganisation.DoesNotExist:
+        return 404, None
 
 class PatientUserSchema(Schema):
     name: str
@@ -125,6 +141,19 @@ class PatientSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
+
+    @classmethod
+    def from_encrypted_patient(cls, patient: Patient, organisation_key_f: Fernet) -> "PatientSchema":
+        patient_name = decrypt_str(organisation_key_f, patient.encrypted_name)
+
+        patient_dob_str = decrypt_str(organisation_key_f, patient.encrypted_date_of_birth)
+        patient_dob = date.fromisoformat(patient_dob_str)
+
+        return cls(
+            id=patient.id,
+            name=patient_name,
+            date_of_birth=patient_dob
+        )
 
 class PatientsSchema(Schema):
     patients: list[PatientSchema]
@@ -141,21 +170,9 @@ def patients(request, organisation_id: str):
 
     (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
 
-    ret: list[PatientSchema] = []
+    patients = [PatientSchema.from_encrypted_patient(p, organisation_key_f) for p in registration.organisation.patient_set.all()]
 
-    for patient in registration.organisation.patient_set.all():
-        patient_name = decrypt_str(organisation_key_f, patient.encrypted_name)
-
-        patient_dob_str = decrypt_str(organisation_key_f, patient.encrypted_date_of_birth)
-        patient_dob = date.fromisoformat(patient_dob_str)
-
-        ret.append(PatientSchema(
-            id=patient.id,
-            name=patient_name,
-            date_of_birth=patient_dob
-        ))
-
-    return {"patients": ret}
+    return {"patients": patients}
 
 
 class NewPatientSchema(Schema):
@@ -164,15 +181,7 @@ class NewPatientSchema(Schema):
 
 @api.post("/organisations/{organisation_id}/patients", auth=AuthBearer(), response={200: PatientSchema, 404: None})
 def add_patient(request, organisation_id: str, data: NewPatientSchema):
-    try:
-        registration = UserOrganisation.objects.get(
-            user=request.auth.user,
-            organisation__id=organisation_id
-        )
-    except UserOrganisation.DoesNotExist:
-        return 404, None
-
-    (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
+    (organisation, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
     encrypted_name = encrypt_str(organisation_key_f, data.name)
     encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
@@ -180,45 +189,39 @@ def add_patient(request, organisation_id: str, data: NewPatientSchema):
     patient = Patient.objects.create(
         encrypted_name=encrypted_name,
         encrypted_date_of_birth=encrypted_date_of_birth,
-        organisation=registration.organisation
+        organisation=organisation
     )
 
-    return PatientSchema(
-        id=patient.id,
-        name=data.name,
-        date_of_birth=data.date_of_birth
-    )
+    return PatientSchema.from_encrypted_patient(patient, organisation_key_f)
 
 
-# class UpdatePatientSchema(Schema):
-#     name: str | None = None
-#     date_of_birth: date | None = None
+class UpdatePatientSchema(Schema):
+    name: str | None = None
+    date_of_birth: date | None = None
 
-# @api.patch("/patients/{patient_id}", auth=AuthBearer(), response={200: PatientSchema, 404: None})
-# def update_patient(request, patient_id: str, data: UpdatePatientSchema):
-#     try:
-#         patient = Patient.objects.get(id=patient_id)
-#     except Patient.DoesNotExist:
-#         return 404, None
+@api.patch("/organisations/{organisation_id}/patients/{patient_id}", auth=AuthBearer(), response={200: PatientSchema, 404: None})
+def update_patient(request, organisation_id: str, patient_id: str, data: UpdatePatientSchema):
+    (organisation, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
-#     user_patient = UserPatient.objects.get(
-#         user=request.auth.user,
-#         patient=patient
-#     )
+    try:
+        patient = Patient.objects.get(
+            id=patient_id,
+            organisation=organisation
+        )
+    except Patient.DoesNotExist:
+        return 404, None
 
-#     (_, patient_key) = user_patient.decrypt_patient_key(request.auth.key)
+    if data.name is not None:
+        patient.encrypted_name = encrypt_str(organisation_key_f, data.name)
 
-#     if data.name is not None:
-#         patient.encrypted_name = encrypt_str(patient_key, data.name)
+    if data.date_of_birth is not None:
+        patient.encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
 
-#     if data.date_of_birth is not None:
-#         patient.encrypted_date_of_birth = encrypt_str(patient_key, data.date_of_birth.isoformat())
+    patient.save()
 
-#     patient.save()
+    ret = PatientSchema.from_encrypted_patient(patient, organisation_key_f)
 
-#     ret = PatientSchema.from_encrypted_patient(patient, patient_key)
-
-#     return 200, ret
+    return 200, ret
 
 # @api.delete("/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
 # def delete_patient(request, patient_id: str):

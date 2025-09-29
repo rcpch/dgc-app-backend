@@ -84,11 +84,11 @@ export async function deletePatient(id: string): Promise<void> {
     });
 }
 
-export async function updatePatient(patient: Patient): Promise<Patient> {
+export async function updatePatient(organisation_id: string, patient: Patient): Promise<Patient> {
   const body = { ...patient };
   delete body.id;
 
-  const response = await fetch(`/api/patients/${patient.id}`, {
+  const response = await fetch(`/api/organisations/${organisation_id}/patients/${patient.id}`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${localStorage['access_token']}`,
