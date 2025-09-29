@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { addPatient, deletePatient, getPatients, Organisation, Patient, shareOrganisation, updatePatient } from "../api";
+import { addPatient, deletePatient, getPatients, Organisation, Patient, removeUserFromOrganisation, shareOrganisation, updatePatient } from "../api";
 import { CreatePatientRow } from "./CreatePatientRow";
 import { PatientRow } from "./PatientRow";
 
@@ -45,11 +45,47 @@ export function OrganisationPatientList({ organisation }: { organisation: Organi
     prompt("Share this link:", shareUrl.toString());
   }
 
+  async function onRemovePatientFromOrganisation(organisation_id: string, user_id: string) {
+    await removeUserFromOrganisation(organisation_id, user_id);
+    window.location.reload();
+  }
+
+  const sharedWithUsers = organisation.users.filter(user => !user.is_current_user);
+
   return <div>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <h3>
-        {organisation.name ?? organisation.id}
-      </h3>
+      <div>
+        <h3>
+          {organisation.name ?? organisation.id}
+        </h3>
+        {sharedWithUsers.length > 0 &&
+          <ul>
+            {sharedWithUsers.map(user => (
+              <li
+                key={user.email}
+                title={user.email}
+                style={{
+                  listStyleType: 'none',
+                  display: 'inline',
+                  marginRight: '8px'
+                }}>
+                {user.name} {user.is_current_user ? "(You)" : ""}
+                <input
+                  type="button"
+                  value="x"
+                  className="pico-background-red"
+                  style={{
+                    width: '2em',
+                    height: '2em',
+                    padding: '0'
+                  }}
+                  onClick={() => onRemovePatientFromOrganisation(organisation.id, user.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        }
+      </div>
       <button onClick={onShareOrganisation}>
         Share
       </button>

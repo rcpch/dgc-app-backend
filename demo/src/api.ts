@@ -1,5 +1,12 @@
+export type OrganisationUser = {
+  name: string;
+  email: string;
+  is_current_user: boolean;
+}
+
 export type Organisation = {
   id: string;
+  users: OrganisationUser[];
   name?: string;
 }
 
@@ -149,5 +156,15 @@ export async function redeemInvite(invite_id: string, token: string) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ token })
+  });
+}
+
+export async function removeUserFromOrganisation(organisation_id: string, user_id: string) {
+  await fetch(`/api/organisations/${organisation_id}/users/${user_id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Content-Type': 'application/json'
+    },
   });
 }

@@ -42,14 +42,16 @@ def hello(request):
     return request.auth.name
 
 
-class OrganisationUser(Schema):
+class OrganisationUserSchema(Schema):
+    id: str
     name: str
     email: str
+    is_current_user: bool
 
 class OrganisationSchema(Schema):
     id: UUID
     name: str | None = None
-    users: list[OrganisationUser]
+    users: list[OrganisationUserSchema]
 
 class OrganisationsSchema(Schema):
     organisations: list[OrganisationSchema]
@@ -69,11 +71,13 @@ def organisations(request):
 
         all_registrations_for_this_organisation = UserOrganisation.objects.filter(organisation=organisation)
 
-        users: list[OrganisationUser] = []
+        users: list[OrganisationUserSchema] = []
         for reg in all_registrations_for_this_organisation:
-            users.append(OrganisationUser(
+            users.append(OrganisationUserSchema(
+                id=reg.user.id,
                 name=decrypt_str(organisation_key_f, reg.encrypted_user_name),
-                email=decrypt_str(organisation_key_f, reg.encrypted_user_email)
+                email=decrypt_str(organisation_key_f, reg.encrypted_user_email),
+                is_current_user=(reg.user == request.auth.user)
             ))
         
         ret.append(OrganisationSchema(
@@ -115,7 +119,7 @@ def add_organisation(request, data: CreateOrganisationSchema):
     return OrganisationSchema(
         id=organisation.id,
         name=data.name if data.name else None,
-        users=[OrganisationUser(
+        users=[OrganisationUserSchema(
             name=request.auth.name,
             email=request.auth.email
         )]
@@ -133,6 +137,24 @@ def get_organisation_or_404(auth: AuthData, organisation_id: str) -> Tuple[Organ
         return (registration.organisation, organisation_key, organisation_key_f)
     except UserOrganisation.DoesNotExist:
         return 404, None
+
+# TODO MRB: shouldn't be able to remove the creator of an org?
+@api.delete("/organisations/{organisation_id}/users/{user_id}", auth=AuthBearer(), response={204: None, 404: None})
+def remove_user_from_organisation(request, organisation_id: str, user_id: str):
+    (organisation, _, _) = get_organisation_or_404(request.auth, organisation_id)
+
+    try:
+        user_organisation = UserOrganisation.objects.get(
+            user__id=user_id,
+            organisation=organisation
+        )
+    except UserOrganisation.DoesNotExist:
+        return 404, None
+
+    user_organisation.delete()
+
+    return 204, None
+
 
 class PatientUserSchema(Schema):
     name: str
