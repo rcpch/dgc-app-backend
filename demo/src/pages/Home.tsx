@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient } from '../api';
+import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient, Organisation, getOrganisations, createDefaultOrganisation } from '../api';
 
 async function login() {
   const config = await client.discovery(
@@ -35,6 +35,8 @@ async function login() {
 
 export function Home() {
   const [token, setToken] = useState(localStorage.access_token);
+
+  const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,8 +45,18 @@ export function Home() {
 
   useEffect(() => {
     if(token) {
+      getOrganisations().then((organisations) => {
+        setOrganisations(organisations);
+
+        if(organisations.length === 0) {
+          createDefaultOrganisation().then((organisation) => {
+            setOrganisations([organisation]);
+          });
+        }
+      });
       getPatients().then(setPatients);
     } else {
+      setOrganisations([]);
       setPatients([]);
     }
   }, [token]);

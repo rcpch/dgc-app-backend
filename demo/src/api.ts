@@ -1,3 +1,8 @@
+export type Organisation = {
+  id: string;
+  name?: string;
+}
+
 export type Patient = {
   id: string;
   name: string;
@@ -14,6 +19,33 @@ export async function testBackend() {
   const name = await response.text();
 
   alert(`Hello ${name}`);
+}
+
+export async function getOrganisations(): Promise<Organisation[]> {
+  const response = await fetch("/api/organisations", {
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`
+    }
+  });
+
+  const { organisations } = await response.json();
+
+  return organisations;
+}
+
+export async function createDefaultOrganisation(): Promise<Organisation> {
+  const response = await fetch("/api/organisations", {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage['access_token']}`,
+       'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({})
+  });
+
+  const organisation = await response.json();
+
+  return organisation;
 }
 
 export async function getPatients(): Promise<Patient[]> {

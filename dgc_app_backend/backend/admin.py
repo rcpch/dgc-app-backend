@@ -1,19 +1,29 @@
 from django.contrib import admin
 
-from .models import User, Patient, UserPatient, SharePatient
+from .models import (
+    User,
+    Organisation,
+    UserOrganisation,
+    Patient,
+    OrganisationInvite
+)
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(Organisation)
+class OrganisationAdmin(admin.ModelAdmin):
+    pass
+
+@admin.register(UserOrganisation)
+class UserOrganisationAdmin(admin.ModelAdmin):
     pass
 
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(UserPatient)
-class UserPatientAdmin(admin.ModelAdmin):
-    pass
-
-@admin.register(SharePatient)
-class SharePatientAdmin(admin.ModelAdmin):
+@admin.register(OrganisationInvite)
+class OrganisationInviteAdmin(admin.ModelAdmin):
     pass

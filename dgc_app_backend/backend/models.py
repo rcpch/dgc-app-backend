@@ -16,41 +16,48 @@ class User(models.Model):
         return self.id
 
 
-class UserPatient(models.Model):
+class Organisation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Encrypted with the organisation key
+    encrypted_name = models.CharField(max_length=300, blank=True, null=True)
+
+
+class UserOrganisation(models.Model):
     user = models.ForeignKey(
         to=User,
         on_delete=models.CASCADE
     )
-    patient = models.ForeignKey(
-        to='Patient',
+    organisation = models.ForeignKey(
+        to=Organisation,
         on_delete=models.CASCADE
     )
-    
-    # Encrypted with the key derived from the user ID
-    encrypted_patient_key = models.CharField(max_length=300)
 
-    # Encrypted with the patient key - used for shared patients
+    # Encrypted with the user key (derived from the user ID)
+    encrypted_organisation_key = models.CharField(max_length=300)
+
+    # Encrypted with the organisation key
     encrypted_user_name = models.CharField(max_length=300)
     encrypted_user_email = models.CharField(max_length=300)
 
-    def decrypt_patient_key(self, user_key: Fernet) -> tuple[bytes, Fernet]:
-        patient_key = decrypt_bytes(user_key, self.encrypted_patient_key)
-        return (patient_key, Fernet(patient_key))
+    def decrypt_organisation_key(self, user_key: Fernet) -> tuple[bytes, Fernet]:
+        organisation_key = decrypt_bytes(user_key, self.encrypted_organisation_key)
+        return (organisation_key, Fernet(organisation_key))
 
     class Meta:
-        unique_together = ('user', 'patient')
+        unique_together = ('user', 'organisation')
 
 
 class Patient(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # Encrypted with the organisation key
     encrypted_name = models.CharField(max_length=300)
     encrypted_date_of_birth = models.CharField(max_length=300)
 
-    users = models.ManyToManyField(
-        to=User,
-        through=UserPatient,
-        related_name='patients'
+    organisation = models.ForeignKey(
+        to=Organisation,
+        on_delete=models.CASCADE
     )
 
     def __str__(self):
@@ -58,7 +65,7 @@ class Patient(models.Model):
 
 
 # TODO MRB: this needs to expire
-class SharePatient(models.Model):
+class OrganisationInvite(models.Model):
     # Plaintext ID to lookup this data
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -67,19 +74,14 @@ class SharePatient(models.Model):
     iterations = models.IntegerField(default=100000)
 
     # Encrypted with the key derived from the password in the share link
-    encrypted_patient_key = models.CharField(max_length=300)
+    encrypted_organisation_key = models.CharField(max_length=300)
 
-    # Metadata about the share, also encrypted with the share key
-    encrypted_sharer_name = models.CharField(max_length=300)
-    encrypted_sharer_email = models.CharField(max_length=300)
-    encrypted_patient_name = models.CharField(max_length=300)
+    def decrypt_organisation_key(self, share_key: Fernet) -> tuple[bytes, Fernet]:
+        organisation_key = decrypt_bytes(share_key, self.encrypted_organisation_key)
+        return (organisation_key, Fernet(organisation_key))
 
-    def decrypt_patient_key(self, share_key: Fernet) -> tuple[bytes, Fernet]:
-        patient_key = decrypt_bytes(share_key, self.encrypted_patient_key)
-        return (patient_key, Fernet(patient_key))
-
-    patient = models.ForeignKey(
-        to=Patient,
+    organisation = models.ForeignKey(
+        to=Organisation,
         on_delete=models.CASCADE
     )
 
