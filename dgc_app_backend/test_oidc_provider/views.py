@@ -2,8 +2,10 @@ import json
 import logging
 
 from functools import cache
+from urllib.parse import urlencode
 
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.conf import settings
 
@@ -13,6 +15,8 @@ from pyop.provider import Provider
 from pyop.authz_state import AuthorizationState
 from pyop.subject_identifier import HashBasedSubjectIdentifierFactory
 from pyop.userinfo import Userinfo
+from pyop.exceptions import InvalidAuthenticationRequest
+from pyop.util import should_fragment_encode
 
 
 logger = logging.getLogger(__name__)
@@ -50,8 +54,25 @@ def get_provider():
     )
 
 def authorization_endpoint(request):
-    response = get_provider().authorization_endpoint(request)
-    return HttpResponse(response['response'], status=response['status'], content_type='application/json')
+    provider = get_provider()
+
+    try:
+        auth_req = provider.parse_authentication_request(
+            request_body=request.GET.urlencode()
+        )
+    except InvalidAuthenticationRequest as e:
+        logger.warning(f"Invalid auth request: {e}")
+
+        error_url = e.to_error_url()
+        if error_url:
+            return redirect(error_url)
+        
+        return HttpResponse(str(e), status=400, content_type='application/json')
+
+    authn_response = provider.authorize(auth_req, "bazza")
+    response_url = authn_response.request(auth_req['redirect_uri'], should_fragment_encode(auth_req))
+
+    return redirect(response_url)
 
 def jwks_uri(request):
     response = get_provider().jwks_uri(request)
