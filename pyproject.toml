@@ -11,3 +11,8 @@ dependencies = [
     "psycopg[binary]==3.2.10",
     "pyjwt[crypto]>=2.10.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pyop>=3.4.2",
+]
