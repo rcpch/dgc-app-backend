@@ -23,17 +23,17 @@ logger = logging.getLogger(__name__)
 def get_provider():
     signing_key = RSAKey(key=RSA.generate(2048), alg="RS256")
 
-    issuer = f"https://{settings.SITE_DOMAIN}"
+    base = f"https://{settings.SITE_DOMAIN}"
 
     return Provider(
         signing_key=signing_key,
         configuration_information={
-            "issuer": issuer,
-            'authorization_endpoint': f"{issuer}{reverse(authorization_endpoint)}",
-            'jwks_uri': f"{issuer}{reverse(jwks_uri)}",
-            'token_endpoint': f"{issuer}{reverse(token_endpoint)}",
-            'userinfo_endpoint': f"{issuer}{reverse(userinfo_endpoint)}",
-            'end_session_endpoint': f"{issuer}{reverse(end_session_endpoint)}",
+            "issuer": f"{base}/test-oidc",
+            'authorization_endpoint': f"{base}{reverse(authorization_endpoint)}",
+            'jwks_uri': f"{base}{reverse(jwks_uri)}",
+            'token_endpoint': f"{base}{reverse(token_endpoint)}",
+            'userinfo_endpoint': f"{base}{reverse(userinfo_endpoint)}",
+            'end_session_endpoint': f"{base}{reverse(end_session_endpoint)}",
             'scopes_supported': ['openid', 'profile'],
             'response_types_supported': ['code', 'code id_token', 'code token', 'code id_token token'],  # code and hybrid
             'response_modes_supported': ['query', 'fragment'],

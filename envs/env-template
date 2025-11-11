@@ -12,7 +12,7 @@ POSTGRES_PORT=5432
 POSTGRES_HOST="postgres"
 
 # DEMO SPA OAUTH
-VITE_DEMO_OAUTH_SERVER=""
-VITE_DEMO_OAUTH_CLIENT_ID=""
-VITE_DEMO_OAUTH_CLIENT_SECRET=""
-DEMO_OAUTH_ISSUER=""
+VITE_DEMO_OAUTH_SERVER="https://dgc-app-backend.localhost/test-oidc" # for the test local provider
+VITE_DEMO_OAUTH_CLIENT_ID="client_id"
+VITE_DEMO_OAUTH_CLIENT_SECRET="client_secret"
+DEMO_OAUTH_ISSUER="https://dgc-app-backend.localhost/test-oidc" # for the test local provider
