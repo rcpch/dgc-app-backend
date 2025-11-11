@@ -35,7 +35,7 @@ from .auth import (
 logger = logging.getLogger(__name__)
 
 
-api = NinjaAPI()
+api = NinjaAPI(urls_namespace="api")
 
 @api.get("/hello", auth=AuthBearer())
 def hello(request):

@@ -41,6 +41,9 @@ INSTALLED_APPS = [
     'dgc_app_backend.backend',
 ]
 
+if os.environ.get("RUN_TEST_OIDC_PROVIDER"):
+    INSTALLED_APPS.append("dgc_app_backend.test_oidc_provider")
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

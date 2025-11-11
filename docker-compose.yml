@@ -18,7 +18,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./staticdocs:/srv/staticdocs
 
-  # Django Ninja API
+  # Django Ninja API and test OIDC provider
   django: &django
     <<: *global # this will inherit all the envs from x-global-environment
     build:
@@ -28,6 +28,8 @@ services:
       - postgres
     volumes:
       - .:/app/
+    environment:
+      - RUN_TEST_OIDC_PROVIDER=true
     command: s/django/start-dev
     restart: always
 
