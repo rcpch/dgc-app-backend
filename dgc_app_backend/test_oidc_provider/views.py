@@ -22,12 +22,28 @@ from pyop.util import should_fragment_encode
 logger = logging.getLogger(__name__)
 
 
+username = "test"
+user_email = "test@rcpch.tech"
+
 # Handle circular dependency with views
 @cache
 def get_provider():
     signing_key = RSAKey(key=RSA.generate(2048), alg="RS256")
 
     base = f"https://{settings.SITE_DOMAIN}"
+
+    clients = {}
+    clients[settings.DEMO_OAUTH_CLIENT_ID] = {
+        "redirect_uris": [f"https://{settings.SITE_DOMAIN}/demo/oauth-callback"],
+        "grant_types": ["authorization_code"],
+        "response_types": ["code"],
+        "client_secret": settings.DEMO_OAUTH_CLIENT_SECRET
+    }
+
+    users = {}
+    users[username] = {
+        "email": user_email
+    }
 
     return Provider(
         signing_key=signing_key,
@@ -49,8 +65,8 @@ def get_provider():
         authz_state=AuthorizationState(
             HashBasedSubjectIdentifierFactory("todo salt")
         ),
-        clients={},
-        userinfo=Userinfo(db={})
+        clients=clients,
+        userinfo=Userinfo(db=users)
     )
 
 def authorization_endpoint(request):
@@ -69,7 +85,7 @@ def authorization_endpoint(request):
         
         return HttpResponse(str(e), status=400, content_type='application/json')
 
-    authn_response = provider.authorize(auth_req, "bazza")
+    authn_response = provider.authorize(auth_req, username)
     response_url = authn_response.request(auth_req['redirect_uri'], should_fragment_encode(auth_req))
 
     return redirect(response_url)
@@ -91,6 +107,5 @@ def end_session_endpoint(request):
     return HttpResponse(response['response'], status=response['status'], content_type='application/json')
 
 def well_known_configuration(request):
-    logger.info(get_provider().provider_configuration.to_dict())
     response = json.dumps(get_provider().provider_configuration.to_dict())
     return HttpResponse(response, status=200, content_type='application/json')
