@@ -39,7 +39,8 @@ def get_provider():
         "redirect_uris": [f"https://{settings.SITE_DOMAIN}/demo/oauth-callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
-        "client_secret": settings.DEMO_OAUTH_CLIENT_SECRET
+        "client_secret": settings.DEMO_OAUTH_CLIENT_SECRET,
+        "token_endpoint_auth_method": "client_secret_post"
     }
 
     users = {}
@@ -56,7 +57,7 @@ def get_provider():
             'token_endpoint': f"{base}{reverse(token_endpoint)}",
             'userinfo_endpoint': f"{base}{reverse(userinfo_endpoint)}",
             'end_session_endpoint': f"{base}{reverse(end_session_endpoint)}",
-            'scopes_supported': ['openid', 'profile'],
+            'scopes_supported': ['openid', 'profile', 'email'],
             'response_types_supported': ['code', 'code id_token', 'code token', 'code id_token token'],  # code and hybrid
             'response_modes_supported': ['query', 'fragment'],
             'grant_types_supported': ['authorization_code', 'implicit'],
@@ -104,7 +105,9 @@ def token_endpoint(request):
             http_headers=request.headers
         )
 
-        return HttpResponse(token_response.to_dict(), status=200, content_type='application/json')
+        token_response = json.dumps(token_response.to_dict())
+
+        return HttpResponse(token_response, status=200, content_type='application/json')
     except InvalidClientAuthentication as e:
         logger.warning('invalid client authentication at token endpoint', exc_info=True)
 

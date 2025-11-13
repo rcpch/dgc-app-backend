@@ -16,6 +16,9 @@ async function oauthCallback() {
       {
           pkceCodeVerifier,
           expectedState
+      },
+      {
+        client_secret: import.meta.env.VITE_DEMO_OAUTH_CLIENT_SECRET
       }
   );
 
