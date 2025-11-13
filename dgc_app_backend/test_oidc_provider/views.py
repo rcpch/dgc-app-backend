@@ -66,7 +66,11 @@ def get_provider():
             'claims_parameter_supported': True
         },
         authz_state=AuthorizationState(
-            HashBasedSubjectIdentifierFactory("todo salt")
+            subject_identifier_factory=HashBasedSubjectIdentifierFactory("todo salt"),
+            authorization_code_lifetime=10*60,
+            access_token_lifetime=60*60,
+            refresh_token_lifetime=24*60*60,
+            refresh_token_threshold=60*60
         ),
         clients=clients,
         userinfo=Userinfo(db=users)
@@ -94,8 +98,8 @@ def authorization_endpoint(request):
     return redirect(response_url)
 
 def jwks_uri(request):
-    response = get_provider().jwks_uri(request)
-    return HttpResponse(response['response'], status=response['status'], content_type='application/json')
+    response = json.dumps(get_provider().jwks)
+    return HttpResponse(response, status=200, content_type='application/json')
 
 @csrf_exempt
 def token_endpoint(request):

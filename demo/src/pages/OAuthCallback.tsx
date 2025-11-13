@@ -25,6 +25,8 @@ async function oauthCallback() {
   delete sessionStorage['code_verifier'];
   delete sessionStorage['state'];
 
+  console.log(JSON.stringify(tokens));
+
   localStorage['access_token'] = tokens.access_token;
 
   window.location.href = '/demo/';

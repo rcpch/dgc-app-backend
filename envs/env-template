@@ -13,6 +13,7 @@ POSTGRES_HOST="postgres"
 
 # DEMO SPA OAUTH
 VITE_DEMO_OAUTH_SERVER="https://dgc-app-backend.localhost/test-oidc" # for the test local provider
+DJANGO_DEMO_OAUTH_SERVER="http://localhost:8000/test-oidc" # hack for the test local provider
 VITE_DEMO_OAUTH_SCOPE="openid profile email"
 VITE_DEMO_OAUTH_CLIENT_ID="client_id"
 VITE_DEMO_OAUTH_CLIENT_SECRET="client_secret"
