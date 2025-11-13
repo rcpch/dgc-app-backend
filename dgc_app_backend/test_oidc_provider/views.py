@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
@@ -15,8 +16,9 @@ from pyop.provider import Provider
 from pyop.authz_state import AuthorizationState
 from pyop.subject_identifier import HashBasedSubjectIdentifierFactory
 from pyop.userinfo import Userinfo
-from pyop.exceptions import InvalidAuthenticationRequest
+from pyop.exceptions import InvalidAuthenticationRequest, InvalidClientAuthentication, OAuthError
 from pyop.util import should_fragment_encode
+from oic.oic.message import TokenErrorResponse
 
 
 logger = logging.getLogger(__name__)
@@ -94,9 +96,31 @@ def jwks_uri(request):
     response = get_provider().jwks_uri(request)
     return HttpResponse(response['response'], status=response['status'], content_type='application/json')
 
+@csrf_exempt
 def token_endpoint(request):
-    response = get_provider().token_endpoint(request)
-    return HttpResponse(response['response'], status=response['status'], content_type='application/json')
+    try:
+        token_response = get_provider().handle_token_request(
+            request_body=request.body.decode('utf-8'),
+            http_headers=request.headers
+        )
+
+        return HttpResponse(token_response.to_dict(), status=200, content_type='application/json')
+    except InvalidClientAuthentication as e:
+        logger.warning('invalid client authentication at token endpoint', exc_info=True)
+
+        error_resp = TokenErrorResponse(error='invalid_client', error_description=str(e))
+
+        response = HttpResponse(error_resp.to_json(), status=401, content_type='application/json')
+        response['WWW-Authenticate'] = 'Basic'
+
+        return response
+    except OAuthError as e:
+        logger.warning('invalid request: %s', str(e), exc_info=True)
+
+        error_resp = TokenErrorResponse(error=e.oauth_error, error_description=str(e))
+        response = HttpResponse(error_resp.to_json(), status=400, content_type='application/json')
+
+        return response
 
 def userinfo_endpoint(request):
     response = get_provider().userinfo_endpoint(request)
