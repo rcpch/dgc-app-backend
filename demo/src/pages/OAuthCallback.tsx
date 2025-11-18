@@ -26,6 +26,7 @@ async function oauthCallback() {
   delete sessionStorage['state'];
 
   localStorage['id_token'] = tokens.id_token;
+  localStorage['refresh_token'] = tokens.refresh_token;
   localStorage['access_token'] = tokens.access_token;
 
   window.location.href = '/demo/';

@@ -7,10 +7,7 @@ import { OrganisationPatientList } from '../components/OrganisationPatients';
 async function login() {
   const config = await client.discovery(
     new URL(import.meta.env.VITE_DEMO_OAUTH_SERVER),
-    import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID,
-    {
-      client_secret: import.meta.env.VITE_DEMO_OAUTH_CLIENT_SECRET,
-    }
+    import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID
   );
 
   const code_verifier = client.randomPKCECodeVerifier();
@@ -35,6 +32,21 @@ async function login() {
   sessionStorage['nonce'] = nonce;
 
   window.location.href = authUrl.href;
+}
+
+async function refreshToken() {
+  const config = await client.discovery(
+    new URL(import.meta.env.VITE_DEMO_OAUTH_SERVER),
+    import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID
+  );
+
+  const refresh_token = localStorage['refresh_token'];
+
+  const tokens = await client.refreshTokenGrant(config, refresh_token);
+
+  localStorage['id_token'] = tokens.id_token;
+  localStorage['refresh_token'] = tokens.refresh_token;
+  localStorage['access_token'] = tokens.access_token;
 }
 
 export function Home() {
@@ -63,6 +75,11 @@ export function Home() {
     testBackend();
   }
 
+  function onTestRefreshToken(e: Event) {
+    e.preventDefault();
+    refreshToken();
+  }
+
   function onLoginFormSubmit(e: Event) {
     e.preventDefault();
     if (token) {
@@ -84,6 +101,9 @@ export function Home() {
           <hr />
           <form onSubmit={onTestFormSubmit}>
             <input type="submit" value="Test Backend" />
+          </form>
+          <form onSubmit={onTestRefreshToken}>
+            <input type="submit" value="Test Refresh Token" />
           </form>
           <hr />
           {organisations.map(organisation => (
