@@ -9,19 +9,23 @@ async function oauthCallback() {
 
   const pkceCodeVerifier = sessionStorage['code_verifier'];
   const expectedState = sessionStorage['state'];
+  const expectedNonce = sessionStorage['nonce'];
 
   const tokens = await client.authorizationCodeGrant(
       config,
       new URL(window.location.href),
       {
           pkceCodeVerifier,
-          expectedState
+          expectedState,
+          expectedNonce,
+          idTokenExpected: true
       }
   );
 
   delete sessionStorage['code_verifier'];
   delete sessionStorage['state'];
 
+  localStorage['id_token'] = tokens.id_token;
   localStorage['access_token'] = tokens.access_token;
 
   window.location.href = '/demo/';

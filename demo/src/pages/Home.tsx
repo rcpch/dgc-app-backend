@@ -17,19 +17,22 @@ async function login() {
   const code_challenge = await client.calculatePKCECodeChallenge(code_verifier);
 
   const state = client.randomState();
+  const nonce = client.randomNonce();
 
   const parameters = {
     redirect_uri: 'https://dgc-app-backend.localhost/demo/oauth-callback',
-    scope: `${import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID}/.default`,
+    scope: 'openid profile email',
     code_challenge,
     code_challenge_method: 'S256',
-    state
+    state,
+    nonce
   }
 
   const authUrl = client.buildAuthorizationUrl(config, parameters);
 
   sessionStorage['code_verifier'] = code_verifier;
   sessionStorage['state'] = state;
+  sessionStorage['nonce'] = nonce;
 
   window.location.href = authUrl.href;
 }
