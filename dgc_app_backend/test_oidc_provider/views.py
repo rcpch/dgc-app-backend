@@ -39,7 +39,7 @@ def get_provider():
         "redirect_uris": [f"https://{settings.SITE_DOMAIN}/demo/oauth-callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
-        # "client_secret": settings.DEMO_OAUTH_CLIENT_SECRET
+        "token_endpoint_auth_method": "client_secret_post"
     }
 
     users = {}
@@ -56,7 +56,7 @@ def get_provider():
             'token_endpoint': f"{base}{reverse(token_endpoint)}",
             'userinfo_endpoint': f"{base}{reverse(userinfo_endpoint)}",
             'end_session_endpoint': f"{base}{reverse(end_session_endpoint)}",
-            'scopes_supported': ['openid', 'profile'],
+            'scopes_supported': ['openid', 'profile', 'email'],
             'response_types_supported': ['code', 'code id_token', 'code token', 'code id_token token'],  # code and hybrid
             'response_modes_supported': ['query', 'fragment'],
             'grant_types_supported': ['authorization_code', 'implicit'],
@@ -65,7 +65,11 @@ def get_provider():
             'claims_parameter_supported': True
         },
         authz_state=AuthorizationState(
-            HashBasedSubjectIdentifierFactory("todo salt")
+            subject_identifier_factory=HashBasedSubjectIdentifierFactory("todo salt"),
+            authorization_code_lifetime=10*60,
+            access_token_lifetime=60*60,
+            refresh_token_lifetime=24*60*60,
+            refresh_token_threshold=60*60
         ),
         clients=clients,
         userinfo=Userinfo(db=users)
@@ -93,33 +97,36 @@ def authorization_endpoint(request):
     return redirect(response_url)
 
 def jwks_uri(request):
-    response = get_provider().jwks_uri(request)
-    return HttpResponse(response['response'], status=response['status'], content_type='application/json')
+    response = json.dumps(get_provider().jwks)
+    return HttpResponse(response, status=200, content_type='application/json')
 
 @csrf_exempt
 def token_endpoint(request):
-    logger.info(f"Token endpoint called {request.body}")
-
     try:
         token_response = get_provider().handle_token_request(
-            request_body=request.body.decode("utf-8"),
+            request_body=request.body.decode('utf-8'),
             http_headers=request.headers
         )
 
-        return HttpResponse(token_response.to_dict(), status=200, content_type='application/json')
-    except InvalidClientAuthentication as e:
-        logger.warning(f"Invalid client authentication", exc_info=True)
+        token_response = json.dumps(token_response.to_dict())
 
-        error_resp = TokenErrorResponse(error="invalid_client", error_description=str(e))
+        return HttpResponse(token_response, status=200, content_type='application/json')
+    except InvalidClientAuthentication as e:
+        logger.warning('invalid client authentication at token endpoint', exc_info=True)
+
+        error_resp = TokenErrorResponse(error='invalid_client', error_description=str(e))
+
         response = HttpResponse(error_resp.to_json(), status=401, content_type='application/json')
-        response["WWW-Authenticate"] = "Basic"
+        response['WWW-Authenticate'] = 'Basic'
 
         return response
     except OAuthError as e:
-        logger.warning(f"OAuth error", exc_info=True)
+        logger.warning('invalid request: %s', str(e), exc_info=True)
 
         error_resp = TokenErrorResponse(error=e.oauth_error, error_description=str(e))
-        return HttpResponse(error_resp.to_json(), status=400, content_type='application/json')
+        response = HttpResponse(error_resp.to_json(), status=400, content_type='application/json')
+
+        return response
 
 def userinfo_endpoint(request):
     response = get_provider().userinfo_endpoint(request)

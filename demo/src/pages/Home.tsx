@@ -53,7 +53,7 @@ export function Home() {
     }
   }, [token]);
 
-  const name = token ? JSON.parse(atob(token.split('.')[1])).unique_name : null;
+  // const name = token ? JSON.parse(atob(token.split('.')[1])).unique_name : null;
 
   function onTestFormSubmit(e: Event) {
     e.preventDefault();
@@ -75,9 +75,9 @@ export function Home() {
 		<div id="app" class="container">
       {token ?
         <>  
-          <h3 id="sub">
+          {/* <h3 id="sub">
             {name ? `Logged in as: ${name}` : ''}
-          </h3>
+          </h3> */}
           <hr />
           <form onSubmit={onTestFormSubmit}>
             <input type="submit" value="Test Backend" />

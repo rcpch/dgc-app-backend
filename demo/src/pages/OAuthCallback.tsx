@@ -16,11 +16,16 @@ async function oauthCallback() {
       {
           pkceCodeVerifier,
           expectedState
+      },
+      {
+        client_secret: import.meta.env.VITE_DEMO_OAUTH_CLIENT_SECRET
       }
   );
 
   delete sessionStorage['code_verifier'];
   delete sessionStorage['state'];
+
+  console.log(JSON.stringify(tokens));
 
   localStorage['access_token'] = tokens.access_token;
 
