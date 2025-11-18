@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 
 from Cryptodome.PublicKey import RSA
 from jwkest.jwk import RSAKey
@@ -15,8 +16,9 @@ from pyop.provider import Provider
 from pyop.authz_state import AuthorizationState
 from pyop.subject_identifier import HashBasedSubjectIdentifierFactory
 from pyop.userinfo import Userinfo
-from pyop.exceptions import InvalidAuthenticationRequest
+from pyop.exceptions import InvalidAuthenticationRequest, InvalidClientAuthentication, OAuthError
 from pyop.util import should_fragment_encode
+from oic.oic.message import TokenErrorResponse
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,7 @@ def get_provider():
         "redirect_uris": [f"https://{settings.SITE_DOMAIN}/demo/oauth-callback"],
         "grant_types": ["authorization_code"],
         "response_types": ["code"],
-        "client_secret": settings.DEMO_OAUTH_CLIENT_SECRET
+        # "client_secret": settings.DEMO_OAUTH_CLIENT_SECRET
     }
 
     users = {}
@@ -77,7 +79,7 @@ def authorization_endpoint(request):
             request_body=request.GET.urlencode()
         )
     except InvalidAuthenticationRequest as e:
-        logger.warning(f"Invalid auth request: {e}")
+        logger.warning(f"Invalid auth request", exc_info=True)
 
         error_url = e.to_error_url()
         if error_url:
@@ -94,9 +96,30 @@ def jwks_uri(request):
     response = get_provider().jwks_uri(request)
     return HttpResponse(response['response'], status=response['status'], content_type='application/json')
 
+@csrf_exempt
 def token_endpoint(request):
-    response = get_provider().token_endpoint(request)
-    return HttpResponse(response['response'], status=response['status'], content_type='application/json')
+    logger.info(f"Token endpoint called {request.body}")
+
+    try:
+        token_response = get_provider().handle_token_request(
+            request_body=request.body.decode("utf-8"),
+            http_headers=request.headers
+        )
+
+        return HttpResponse(token_response.to_dict(), status=200, content_type='application/json')
+    except InvalidClientAuthentication as e:
+        logger.warning(f"Invalid client authentication", exc_info=True)
+
+        error_resp = TokenErrorResponse(error="invalid_client", error_description=str(e))
+        response = HttpResponse(error_resp.to_json(), status=401, content_type='application/json')
+        response["WWW-Authenticate"] = "Basic"
+
+        return response
+    except OAuthError as e:
+        logger.warning(f"OAuth error", exc_info=True)
+
+        error_resp = TokenErrorResponse(error=e.oauth_error, error_description=str(e))
+        return HttpResponse(error_resp.to_json(), status=400, content_type='application/json')
 
 def userinfo_endpoint(request):
     response = get_provider().userinfo_endpoint(request)
