@@ -17,7 +17,7 @@ async function login() {
   const nonce = client.randomNonce();
 
   const parameters = {
-    redirect_uri: 'https://dgc-app-backend.localhost/demo/oauth-callback',
+    redirect_uri: `https://${import.meta.env.VITE_SITE_DOMAIN}/demo/oauth-callback`,
     scope: 'openid profile email',
     code_challenge,
     code_challenge_method: 'S256',
