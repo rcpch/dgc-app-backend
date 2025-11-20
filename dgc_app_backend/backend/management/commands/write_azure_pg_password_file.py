@@ -1,7 +1,13 @@
 import os
+import logging
 
 from django.core.management.base import BaseCommand
 from azure.identity import DefaultAzureCredential
+
+
+logger = logging.getLogger(__name__)
+
+
 
 # https://www.postgresql.org/docs/current/libpq-pgpass.html
 #
@@ -17,10 +23,14 @@ def write_azure_pg_password_file():
     if not password_file:
         return
 
+    logger.info(f"Writing Azure Postgres password file to {password_file}")
+
     password = DefaultAzureCredential().get_token("https://ossrdbms-aad.database.windows.net").token
 
     with open(password_file, "w") as f:
         f.write(f"*:*:*:*:{password}")
+
+    logger.info(f"Wrote Azure Postgres password file")
     
     # libpg silently ignores the file if it's readable by anyone else
     os.chmod(password_file, 0o600)
