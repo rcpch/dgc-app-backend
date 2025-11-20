@@ -40,13 +40,15 @@ async function refreshToken() {
     import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID
   );
 
-  const refresh_token = localStorage['refresh_token'];
+  const refreshTokenBefore = localStorage['refresh_token'];
 
-  const tokens = await client.refreshTokenGrant(config, refresh_token);
+  const { id_token, refresh_token } = await client.refreshTokenGrant(config, refreshTokenBefore);
 
-  localStorage['id_token'] = tokens.id_token;
-  localStorage['refresh_token'] = tokens.refresh_token;
-  localStorage['access_token'] = tokens.access_token;
+  const { access_token, name, email } = await exchangeTokens(id_token);
+
+  localStorage['id_token'] = id_token;
+  localStorage['refresh_token'] = refresh_token;
+  localStorage['access_token'] = access_token;
 }
 
 export function Home() {

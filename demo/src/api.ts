@@ -16,14 +16,22 @@ export type Patient = {
   date_of_birth: string;
 };
 
-export async function exchangeTokens(idToken: string): Promise<void> {
-  await fetch("/api/token", {
+export type TokenResponse = {
+  access_token: string;
+  email: string;
+  name: string;
+}
+
+export async function exchangeTokens(idToken: string): Promise<TokenResponse> {
+  const response = await fetch("/api/token", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ id_token: idToken })
   });
+
+  return response.json();
 }
 
 export async function testBackend() {

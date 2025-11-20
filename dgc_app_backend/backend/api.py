@@ -30,7 +30,8 @@ from .crypto import (
 from .auth import (
     AuthBearer,
     AuthData,
-    verify_third_party_jwt
+    verify_third_party_jwt,
+    generate_access_token
 )
 
 logger = logging.getLogger(__name__)
@@ -44,17 +45,24 @@ class TokenRequestSchema(Schema):
 
 class TokenResponseSchema(Schema):
     access_token: str
-    email: str
     name: str
+    email: str
 
 @api.post("/token", response=TokenResponseSchema)
 def token(request, data: TokenRequestSchema):
     claims = verify_third_party_jwt(data.id_token)
+
+    email = claims["email"]
+    name = claims["name"]
     
     return TokenResponseSchema(
-        access_token="todo",
-        email=claims["email"],
-        name=claims["name"]
+        access_token=generate_access_token(
+            sub=claims["sub"],
+            name=claims["name"],
+            email=claims["email"]
+        ),
+        name=claims["name"],
+        email=claims["email"]
     )
 
 
@@ -126,6 +134,7 @@ def add_organisation(request, data: CreateOrganisationSchema):
 
     encrypted_organisation_key = encrypt_bytes(request.auth.key, organisation_key)
 
+    # TODO MRB: what should we do if these change the next time a user logs in?
     encrypted_user_name = encrypt_str(organisation_f, request.auth.name)
     encrypted_user_email = encrypt_str(organisation_f, request.auth.email)
 

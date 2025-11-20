@@ -1,5 +1,6 @@
 import { useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
+import { exchangeTokens } from '../api';
 
 async function oauthCallback() {
   const config = await client.discovery(
@@ -11,7 +12,7 @@ async function oauthCallback() {
   const expectedState = sessionStorage['state'];
   const expectedNonce = sessionStorage['nonce'];
 
-  const tokens = await client.authorizationCodeGrant(
+  const { id_token, refresh_token } = await client.authorizationCodeGrant(
       config,
       new URL(window.location.href),
       {
@@ -25,9 +26,11 @@ async function oauthCallback() {
   delete sessionStorage['code_verifier'];
   delete sessionStorage['state'];
 
-  localStorage['id_token'] = tokens.id_token;
-  localStorage['refresh_token'] = tokens.refresh_token;
-  localStorage['access_token'] = tokens.access_token;
+  const { access_token, name, email } = await exchangeTokens(id_token);
+
+  localStorage['access_token'] = access_token;
+  localStorage['id_token'] = id_token;
+  localStorage['refresh_token'] = refresh_token;
 
   window.location.href = '/demo/';
 }
