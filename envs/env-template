@@ -12,6 +12,9 @@ POSTGRES_USER="dgcapp"
 POSTGRES_PORT=5432
 POSTGRES_HOST="postgres"
 
+DJANGO_SECRET_KEY="django-insecure-&nfk@j#t73t2j767&k3f#btzse0=0r9d)1#x38dp@fe&5$1vg8"
+DEBUG="True"
+
 SESSION_JWT_AUDIENCE="uk.ac.rcpch.digital_growth_charts_app"
 SESSION_JWT_ISSUER="uk.ac.rcpch.digital_growth_charts_app_backend"
 SESSION_JWT_EXPIRY_SECONDS=3600  # 1 hour
