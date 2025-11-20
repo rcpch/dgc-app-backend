@@ -30,7 +30,8 @@ from .crypto import (
 from .auth import (
     AuthBearer,
     AuthData,
-    verify_third_party_jwt,
+    login_with_third_party_id_token,
+    login_with_third_party_access_token,
     generate_access_token
 )
 
@@ -41,28 +42,30 @@ api = NinjaAPI()
 
 
 class TokenRequestSchema(Schema):
-    id_token: str
+    id_token: str | None = None
+    access_token: str | None = None
 
 class TokenResponseSchema(Schema):
     access_token: str
-    name: str
-    email: str
+    name: str | None = None
+    email: str | None = None
 
-@api.post("/token", response=TokenResponseSchema)
+@api.post("/token", response={200: TokenResponseSchema, 404: None})
 def token(request, data: TokenRequestSchema):
-    claims = verify_third_party_jwt(data.id_token)
-
-    email = claims["email"]
-    name = claims["name"]
+    if data.access_token:
+        auth_data = login_with_third_party_access_token(data.access_token)
+    elif data.id_token:
+        auth_data = login_with_third_party_id_token(data.id_token)
+    else:
+        return 400, {"detail": "Either id_token or access_token must be provided."}
     
-    return TokenResponseSchema(
-        access_token=generate_access_token(
-            sub=claims["sub"],
-            name=claims["name"],
-            email=claims["email"]
-        ),
-        name=claims["name"],
-        email=claims["email"]
+    email = auth_data.email
+    name = auth_data.name
+
+    return 200, TokenResponseSchema(
+        access_token=generate_access_token(auth_data.sub),
+        name=auth_data.name,
+        email=auth_data.email
     )
 
 

@@ -18,19 +18,35 @@ export type Patient = {
   date_of_birth: string;
 };
 
-export type TokenResponse = {
+export type ExchangeIdTokenResponse = {
   access_token: string;
   email: string;
   name: string;
 }
 
-export async function exchangeTokens(idToken: string): Promise<TokenResponse> {
+export async function exchangeIdToken(id_token: string): Promise<ExchangeIdTokenResponse> {
   const response = await fetch("/api/token", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ id_token: idToken })
+    body: JSON.stringify({ id_token })
+  });
+
+  return response.json();
+}
+
+export type ExchangeAccessTokenResponse = {
+  access_token: string;
+}
+
+export async function exchangeAccessToken(access_token: string): Promise<ExchangeAccessTokenResponse> {
+  const response = await fetch("/api/token", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ access_token })
   });
 
   return response.json();

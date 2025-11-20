@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeTokens } from '../api';
+import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeTokens, exchangeAccessToken } from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
 import { AuthData, clearAuthData, getAuthData, saveAuthData } from '../auth';
 
@@ -43,16 +43,16 @@ async function refreshToken() {
 
   const refreshTokenBefore = getAuthData()!.refresh_token;
 
-  const { id_token, refresh_token } = await client.refreshTokenGrant(config, refreshTokenBefore);
+  const thirdPartyTokens = await client.refreshTokenGrant(config, refreshTokenBefore);
 
-  const { access_token, name, email } = await exchangeTokens(id_token);
+  const { access_token, name, email } = await exchangeAccessToken(thirdPartyTokens.access_token!);
 
-  saveAuthData({
-    access_token,
-    refresh_token,
-    name,
-    email
-  })
+  // saveAuthData({
+  //   access_token,
+  //   refresh_token,
+  //   name,
+  //   email
+  // })
 }
 
 export function Home() {

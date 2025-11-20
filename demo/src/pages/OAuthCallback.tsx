@@ -1,6 +1,6 @@
 import { useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
-import { exchangeTokens } from '../api';
+import { exchangeIdToken } from '../api';
 import { saveAuthData } from '../auth';
 
 async function oauthCallback() {
@@ -27,7 +27,7 @@ async function oauthCallback() {
   delete sessionStorage['code_verifier'];
   delete sessionStorage['state'];
 
-  const { access_token, name, email } = await exchangeTokens(id_token);
+  const { access_token, name, email } = await exchangeIdToken(id_token);
 
   saveAuthData({
     access_token,
