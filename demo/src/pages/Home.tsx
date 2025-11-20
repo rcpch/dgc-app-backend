@@ -1,59 +1,10 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeTokens, exchangeAccessToken } from '../api';
+import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeAccessToken , refreshAccessToken} from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
 import { AuthData, clearAuthData, getAuthData, saveAuthData } from '../auth';
-
-async function login() {
-  const config = await client.discovery(
-    new URL(import.meta.env.VITE_DEMO_OAUTH_SERVER),
-    import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID
-  );
-
-  const code_verifier = client.randomPKCECodeVerifier();
-  const code_challenge = await client.calculatePKCECodeChallenge(code_verifier);
-
-  const state = client.randomState();
-  const nonce = client.randomNonce();
-
-  const parameters = {
-    redirect_uri: `https://${import.meta.env.VITE_SITE_DOMAIN}/demo/oauth-callback`,
-    scope: 'openid profile email',
-    code_challenge,
-    code_challenge_method: 'S256',
-    state,
-    nonce
-  }
-
-  const authUrl = client.buildAuthorizationUrl(config, parameters);
-
-  sessionStorage['code_verifier'] = code_verifier;
-  sessionStorage['state'] = state;
-  sessionStorage['nonce'] = nonce;
-
-  window.location.href = authUrl.href;
-}
-
-async function refreshToken() {
-  const config = await client.discovery(
-    new URL(import.meta.env.VITE_DEMO_OAUTH_SERVER),
-    import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID
-  );
-
-  const refreshTokenBefore = getAuthData()!.refresh_token;
-
-  const thirdPartyTokens = await client.refreshTokenGrant(config, refreshTokenBefore);
-
-  const { access_token, name, email } = await exchangeAccessToken(thirdPartyTokens.access_token!);
-
-  // saveAuthData({
-  //   access_token,
-  //   refresh_token,
-  //   name,
-  //   email
-  // })
-}
+import { login } from '../oauth';
 
 export function Home() {
   const [authData, setAuthData] = useState<AuthData | undefined>(getAuthData());
@@ -75,8 +26,6 @@ export function Home() {
     }
   }, [accessToken]);
 
-  // const name = token ? JSON.parse(atob(token.split('.')[1])).unique_name : null;
-
   function onTestFormSubmit(e: Event) {
     e.preventDefault();
     testBackend();
@@ -84,7 +33,7 @@ export function Home() {
 
   function onTestRefreshToken(e: Event) {
     e.preventDefault();
-    refreshToken();
+    refreshAccessToken();
   }
 
   function onLoginFormSubmit(e: Event) {

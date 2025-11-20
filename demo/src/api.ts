@@ -1,4 +1,5 @@
-import { getAuthData } from "./auth";
+import { getAuthData, saveAuthData } from "./auth";
+import { refreshToken } from "./oauth";
 
 export type OrganisationUser = {
   name: string;
@@ -52,12 +53,55 @@ export async function exchangeAccessToken(access_token: string): Promise<Exchang
   return response.json();
 }
 
-export async function testBackend() {
-  const response = await fetch("/api/hello", {
-    headers: {
-      'Authorization': `Bearer ${getAuthData()!.access_token}`
-    }
+export async function refreshAccessToken(): Promise<void> {
+  const authData = getAuthData();
+
+  if(authData) {
+    const thirdPartyTokens = await refreshToken(authData.refresh_token);
+    const { access_token } = await exchangeAccessToken(thirdPartyTokens.access_token);
+
+    const newAuthData = {
+      ...authData,
+      access_token,
+      refresh_token: thirdPartyTokens.refresh_token
+    };
+
+    saveAuthData(newAuthData);
+  }
+}
+
+
+async function authFetch(input: RequestInfo, init?: RequestInit, retryOn401: boolean = true): Promise<Response> {
+  const authData = getAuthData();
+
+  if (!authData) {
+    throw new Error("No auth data");
+  }
+
+  const headers = new Headers(init?.headers || {});
+  headers.set('Authorization', `Bearer ${authData.access_token}`);
+
+  const response = await fetch(input, {
+    ...init,
+    headers
   });
+
+  if(response.status === 401) {
+    const code = (await response.json()).code;
+
+    if(code === "token_expired" && retryOn401) {
+      await refreshAccessToken();
+      return authFetch(input, init, false);
+    }
+
+    throw new Error("Unauthorized");
+  }
+
+  return response;
+}
+
+export async function testBackend() {
+  const response = await authFetch("/api/hello");
 
   const name = await response.text();
 

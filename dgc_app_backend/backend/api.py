@@ -1,6 +1,7 @@
 import os
 import logging
 import uuid
+import jwt
 
 from datetime import date
 from uuid import UUID
@@ -39,6 +40,14 @@ logger = logging.getLogger(__name__)
 
 
 api = NinjaAPI()
+
+
+@api.exception_handler(jwt.ExpiredSignatureError)
+def on_expired_access_token(request, exc):
+    response = {
+        "code": "token_expired"
+    }
+    return api.create_response(request, response, status=401)
 
 
 class TokenRequestSchema(Schema):

@@ -86,9 +86,24 @@ def login_with_third_party_access_token(token: str) -> dict:
   )
 
   ret = response.json()
-  logger.info(f"Userinfo response: {ret}")
+  
+  sub = ret["sub"]
+  user_id = sha_256(sub)
 
-  return ret
+  user = User.objects.get(id=user_id)
+
+  key = derive_key(sub, user.salt, user.iterations)
+
+  name = decrypt_str(key, user.encrypted_name)
+  email = decrypt_str(key, user.encrypted_email)
+
+  return AuthData(
+    sub=sub,
+    user=user,
+    name=name,
+    email=email,
+    key=key
+  )
 
 def generate_access_token(sub: str) -> str:
   return jwt.encode({
