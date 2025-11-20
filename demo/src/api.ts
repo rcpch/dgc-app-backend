@@ -16,6 +16,16 @@ export type Patient = {
   date_of_birth: string;
 };
 
+export async function exchangeTokens(idToken: string): Promise<void> {
+  await fetch("/api/token", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ id_token: idToken })
+  });
+}
+
 export async function testBackend() {
   const response = await fetch("/api/hello", {
     headers: {

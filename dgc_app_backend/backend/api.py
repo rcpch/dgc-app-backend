@@ -29,13 +29,34 @@ from .crypto import (
 )
 from .auth import (
     AuthBearer,
-    AuthData
+    AuthData,
+    verify_third_party_jwt
 )
 
 logger = logging.getLogger(__name__)
 
 
 api = NinjaAPI()
+
+
+class TokenRequestSchema(Schema):
+    id_token: str
+
+class TokenResponseSchema(Schema):
+    access_token: str
+    email: str
+    name: str
+
+@api.post("/token", response=TokenResponseSchema)
+def token(request, data: TokenRequestSchema):
+    claims = verify_third_party_jwt(data.id_token)
+    
+    return TokenResponseSchema(
+        access_token="todo",
+        email=claims["email"],
+        name=claims["name"]
+    )
+
 
 @api.get("/hello", auth=AuthBearer())
 def hello(request):
