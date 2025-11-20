@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeTokens } from '../api';
+import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeTokens } from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
 
 async function login() {
@@ -111,9 +111,6 @@ export function Home() {
           </form>
           <form onSubmit={onTestRefreshToken}>
             <input type="submit" value="Test Refresh Token" />
-          </form>
-          <form onSubmit={onTestExchangeTokens}>
-            <input type="submit" value="Test Exchange Tokens" />
           </form>
           <hr />
           {organisations.map(organisation => (

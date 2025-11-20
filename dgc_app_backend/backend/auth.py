@@ -1,5 +1,6 @@
 import jwt
 import httpx
+import datetime
 
 from dataclasses import dataclass
 
@@ -37,9 +38,11 @@ def verify_third_party_jwt(token: str) -> dict:
 
     return claims
 
-# TODO MRB: exp, aud and iss
 def generate_access_token(sub: str, name: str, email: str) -> str:
   return jwt.encode({
+    "iss": settings.SESSION_JWT_ISSUER,
+    "aud": settings.SESSION_JWT_AUDIENCE,
+    "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=settings.SESSION_JWT_EXPIRY_SECONDS),
     "sub": sub,
     "name": name,
     "email": email
@@ -50,8 +53,14 @@ class AuthBearer(HttpBearer):
     if not token:
       return None
     
-    # TODO: audience and issuer checks
-    claims = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    claims = jwt.decode(
+      token,
+      settings.SECRET_KEY,
+      algorithms=["HS256"],
+      audience=settings.SESSION_JWT_AUDIENCE,
+      issuer=settings.SESSION_JWT_ISSUER,
+      strict_aud=True
+    )
 
     # TODO MRB: hash at exchange time?
     user_id = sha_256(claims["sub"])
