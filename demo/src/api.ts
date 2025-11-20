@@ -25,13 +25,13 @@ export type ExchangeIdTokenResponse = {
   name: string;
 }
 
-export async function exchangeIdToken(id_token: string): Promise<ExchangeIdTokenResponse> {
+export async function exchangeIdToken(oauth_server: string, id_token: string): Promise<ExchangeIdTokenResponse> {
   const response = await fetch("/api/token", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ id_token })
+    body: JSON.stringify({ oauth_server, id_token })
   });
 
   return response.json();
@@ -41,13 +41,13 @@ export type ExchangeAccessTokenResponse = {
   access_token: string;
 }
 
-export async function exchangeAccessToken(access_token: string): Promise<ExchangeAccessTokenResponse> {
+export async function exchangeAccessToken(oauth_server: string, access_token: string): Promise<ExchangeAccessTokenResponse> {
   const response = await fetch("/api/token", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ access_token })
+    body: JSON.stringify({ oauth_server, access_token })
   });
 
   return response.json();
@@ -57,8 +57,8 @@ export async function refreshAccessToken(): Promise<void> {
   const authData = getAuthData();
 
   if(authData) {
-    const thirdPartyTokens = await refreshToken(authData.refresh_token);
-    const { access_token } = await exchangeAccessToken(thirdPartyTokens.access_token);
+    const thirdPartyTokens = await refreshToken(authData.oauth_server, authData.refresh_token);
+    const { access_token } = await exchangeAccessToken(authData.oauth_server, thirdPartyTokens.access_token);
 
     const newAuthData = {
       ...authData,

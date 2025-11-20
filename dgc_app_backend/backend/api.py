@@ -51,6 +51,7 @@ def on_expired_access_token(request, exc):
 
 
 class TokenRequestSchema(Schema):
+    oauth_server: str
     id_token: str | None = None
     access_token: str | None = None
 
@@ -62,9 +63,9 @@ class TokenResponseSchema(Schema):
 @api.post("/token", response={200: TokenResponseSchema, 404: None})
 def token(request, data: TokenRequestSchema):
     if data.access_token:
-        auth_data = login_with_third_party_access_token(data.access_token)
+        auth_data = login_with_third_party_access_token(data.oauth_server, data.access_token)
     elif data.id_token:
-        auth_data = login_with_third_party_id_token(data.id_token)
+        auth_data = login_with_third_party_id_token(data.oauth_server, data.id_token)
     else:
         return 400, {"detail": "Either id_token or access_token must be provided."}
     

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'preact/hooks';
-import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeAccessToken , refreshAccessToken} from '../api';
+import { testBackend, Organisation, getOrganisations, createDefaultOrganisation, refreshAccessToken} from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
-import { AuthData, clearAuthData, getAuthData, saveAuthData } from '../auth';
-import { login } from '../oauth';
+import { AuthData, clearAuthData, getAuthData } from '../auth';
+import { login, MICROSOFT_OAUTH_SERVER, GOOGLE_OAUTH_SERVER } from '../oauth';
 
 export function Home() {
   const [authData, setAuthData] = useState<AuthData | undefined>(getAuthData());
@@ -36,15 +35,21 @@ export function Home() {
     refreshAccessToken();
   }
 
-  function onLoginFormSubmit(e: Event) {
+  function onLoginWithMicrosoft(e: Event) {
     e.preventDefault();
-    if (authData) {
-      clearAuthData();
-      setAuthData(null);
-      setOrganisations([]);
-    } else {
-      login();
-    }
+    login(MICROSOFT_OAUTH_SERVER);
+  }
+
+  function onLoginWithGoogle(e: Event) {
+    e.preventDefault();
+    login(GOOGLE_OAUTH_SERVER);
+  }
+
+  function onLogout(e: Event) {
+    e.preventDefault();
+    clearAuthData();
+    setAuthData(null);
+    setOrganisations([]);
   };
 
 	return (
@@ -70,9 +75,21 @@ export function Home() {
           ))}
         </>
       : ''}
-			<form onSubmit={onLoginFormSubmit}>
-				<input type="submit" value={authData ? 'Logout' : 'Login'} />
-			</form>
+      {!authData && MICROSOFT_OAUTH_SERVER ?
+        <form onSubmit={onLoginWithMicrosoft}>
+          <input type="submit" value="Login with Microsoft" />
+        </form>
+      : ''}
+      {!authData && MICROSOFT_OAUTH_SERVER ?
+        <form onSubmit={onLoginWithGoogle}>
+          <input type="submit" value="Login with Google" />
+        </form>
+      : ''}
+      {authData ?
+        <form onSubmit={onLogout}>
+          <input type="submit" value="Logout" />
+        </form>
+      : ''}
     </div>
 	);
 }

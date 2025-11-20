@@ -1,4 +1,5 @@
 export type AuthData = {
+    oauth_server: string;
     access_token: string;
     refresh_token: string;
     name: string;

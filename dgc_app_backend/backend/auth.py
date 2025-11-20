@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class AuthConfig:
+  oauth_server: str
+  client_id: str
+  issuer: str
+
+@dataclass
 class AuthData:
   sub: str
   user: User
@@ -24,8 +30,28 @@ class AuthData:
   key: bytes
 
 
-def login_with_third_party_id_token(token: str) -> AuthData:
-  url = f"{settings.DEMO_OAUTH_SERVER}/.well-known/openid-configuration"
+def fetch_config(oauthServer: str) -> dict:
+  match oauthServer:
+    case settings.MICROSOFT_OAUTH_SERVER:
+      return AuthConfig(
+        oauth_server=settings.MICROSOFT_OAUTH_SERVER,
+        client_id=settings.MICROSOFT_OAUTH_CLIENT_ID,
+        issuer=settings.MICROSOFT_OAUTH_ISSUER
+      )
+    case settings.GOOGLE_OAUTH_SERVER:
+      return AuthConfig(
+        oauth_server=settings.GOOGLE_OAUTH_SERVER,
+        client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
+        issuer=settings.GOOGLE_OAUTH_ISSUER
+      )
+    case _:
+      raise ValueError(f"Unknown OAuth server: {oauthServer}")
+
+
+def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
+  config = fetch_config(oauth_server)
+
+  url = f"{config.oauth_server}/.well-known/openid-configuration"
   oidc_doc = httpx.get(url).json()
 
   signing_algos = oidc_doc["id_token_signing_alg_values_supported"]
@@ -37,8 +63,8 @@ def login_with_third_party_id_token(token: str) -> AuthData:
       token,
       signing_key.key,
       algorithms=signing_algos,
-      audience=settings.DEMO_OAUTH_CLIENT_ID,
-      issuer=settings.DEMO_OAUTH_ISSUER,
+      audience=config.client_id,
+      issuer=config.issuer,
       strict_aud=True
   )
 
@@ -75,8 +101,10 @@ def login_with_third_party_id_token(token: str) -> AuthData:
   )
 
 
-def login_with_third_party_access_token(token: str) -> dict:
-  url = f"{settings.DEMO_OAUTH_SERVER}/.well-known/openid-configuration"
+def login_with_third_party_access_token(oauth_server: str, token: str) -> AuthData:
+  config = fetch_config(oauth_server)
+
+  url = f"{config.oauth_server}/.well-known/openid-configuration"
   oidc_doc = httpx.get(url).json()
 
   userinfo_endpoint = oidc_doc["userinfo_endpoint"]
