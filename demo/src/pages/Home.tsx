@@ -3,6 +3,7 @@ import * as client from 'openid-client';
 
 import { getPatients, addPatient, deletePatient, updatePatient, testBackend, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation, exchangeTokens } from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
+import { AuthData, clearAuthData, getAuthData, saveAuthData } from '../auth';
 
 async function login() {
   const config = await client.discovery(
@@ -40,24 +41,28 @@ async function refreshToken() {
     import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID
   );
 
-  const refreshTokenBefore = localStorage['refresh_token'];
+  const refreshTokenBefore = getAuthData()!.refresh_token;
 
   const { id_token, refresh_token } = await client.refreshTokenGrant(config, refreshTokenBefore);
 
   const { access_token, name, email } = await exchangeTokens(id_token);
 
-  localStorage['id_token'] = id_token;
-  localStorage['refresh_token'] = refresh_token;
-  localStorage['access_token'] = access_token;
+  saveAuthData({
+    access_token,
+    refresh_token,
+    name,
+    email
+  })
 }
 
 export function Home() {
-  const [token, setToken] = useState(localStorage.access_token);
-
+  const [authData, setAuthData] = useState<AuthData | undefined>(getAuthData());
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
 
+  const accessToken = authData?.access_token;
+
   useEffect(() => {
-    if(token) {
+    if(accessToken) {
       getOrganisations().then((organisations) => {
         if(organisations.length === 0) {
           createDefaultOrganisation().then(org => setOrganisations([org]));
@@ -68,7 +73,7 @@ export function Home() {
     } else {
       setOrganisations([]);
     }
-  }, [token]);
+  }, [accessToken]);
 
   // const name = token ? JSON.parse(atob(token.split('.')[1])).unique_name : null;
 
@@ -82,16 +87,11 @@ export function Home() {
     refreshToken();
   }
 
-  function onTestExchangeTokens(e: Event) {
-    e.preventDefault();
-    exchangeTokens(localStorage['id_token']);
-  }
-
   function onLoginFormSubmit(e: Event) {
     e.preventDefault();
-    if (token) {
-      delete localStorage['access_token'];
-      setToken('');
+    if (authData) {
+      clearAuthData();
+      setAuthData(null);
       setOrganisations([]);
     } else {
       login();
@@ -100,11 +100,11 @@ export function Home() {
 
 	return (
 		<div id="app" class="container">
-      {token ?
+      {authData ?
         <>  
-          {/* <h3 id="sub">
-            {name ? `Logged in as: ${name}` : ''}
-          </h3> */}
+          <h3 id="sub">
+            Logged in as {authData.name} ({authData.email})
+          </h3>
           <hr />
           <form onSubmit={onTestFormSubmit}>
             <input type="submit" value="Test Backend" />
@@ -122,7 +122,7 @@ export function Home() {
         </>
       : ''}
 			<form onSubmit={onLoginFormSubmit}>
-				<input type="submit" value={token ? 'Logout' : 'Login'} />
+				<input type="submit" value={authData ? 'Logout' : 'Login'} />
 			</form>
     </div>
 	);

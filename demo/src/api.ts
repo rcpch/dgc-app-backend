@@ -1,3 +1,5 @@
+import { getAuthData } from "./auth";
+
 export type OrganisationUser = {
   name: string;
   email: string;
@@ -37,7 +39,7 @@ export async function exchangeTokens(idToken: string): Promise<TokenResponse> {
 export async function testBackend() {
   const response = await fetch("/api/hello", {
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
+      'Authorization': `Bearer ${getAuthData()!.access_token}`
     }
   });
 
@@ -49,7 +51,7 @@ export async function testBackend() {
 export async function getOrganisations(): Promise<Organisation[]> {
   const response = await fetch("/api/organisations", {
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
+      'Authorization': `Bearer ${getAuthData()!.access_token}`
     }
   });
 
@@ -62,7 +64,7 @@ export async function createDefaultOrganisation(): Promise<Organisation> {
   const response = await fetch("/api/organisations", {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Authorization': `Bearer ${getAuthData()!.access_token}`,
        'Content-Type': 'application/json'
     },
     body: JSON.stringify({})
@@ -76,7 +78,7 @@ export async function createDefaultOrganisation(): Promise<Organisation> {
 export async function getPatients(organisation_id: string): Promise<Patient[]> {
   const response = await fetch(`/api/organisations/${organisation_id}/patients`, {
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
+      'Authorization': `Bearer ${getAuthData()!.access_token}`
     }
   });
 
@@ -89,7 +91,7 @@ export async function addPatient(organisation_id: string, name: string, date_of_
   const response = await fetch(`/api/organisations/${organisation_id}/patients`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage['access_token']}`,
+        'Authorization': `Bearer ${getAuthData()!.access_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ name, date_of_birth })
@@ -104,7 +106,7 @@ export async function deletePatient(organisation_id: string, id: string): Promis
   await fetch(`/api/organisations/${organisation_id}/patients/${id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${localStorage['access_token']}`,
+        'Authorization': `Bearer ${getAuthData()!.access_token}`,
       }
     });
 }
@@ -116,7 +118,7 @@ export async function updatePatient(organisation_id: string, patient: Patient): 
   const response = await fetch(`/api/organisations/${organisation_id}/patients/${patient.id}`, {
     method: 'PATCH',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Authorization': `Bearer ${getAuthData()!.access_token}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(patient)
@@ -134,7 +136,7 @@ export async function shareOrganisation(organisation_id: string): Promise<Invite
   const response = await fetch(`/api/organisations/${organisation_id}/share`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Authorization': `Bearer ${getAuthData()!.access_token}`,
       'Content-Type': 'application/json'
     }
   });
@@ -155,7 +157,7 @@ export async function getInviteDetails(invite_id: string, token: string): Promis
   const response = await fetch(`/api/invites/${invite_id}/details`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Authorization': `Bearer ${getAuthData()!.access_token}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ token })
@@ -170,7 +172,7 @@ export async function redeemInvite(invite_id: string, token: string) {
   await fetch(`/api/invites/${invite_id}/redeem`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Authorization': `Bearer ${getAuthData()!.access_token}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ token })
@@ -181,7 +183,7 @@ export async function removeUserFromOrganisation(organisation_id: string, user_i
   await fetch(`/api/organisations/${organisation_id}/users/${user_id}`, {
     method: 'DELETE',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
+      'Authorization': `Bearer ${getAuthData()!.access_token}`,
       'Content-Type': 'application/json'
     },
   });
