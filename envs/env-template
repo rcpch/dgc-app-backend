@@ -1,5 +1,6 @@
 # CADDY (WEB SERVER & HTTPS)
-SITE_DOMAIN="dgc-app-backend.localhost" # this should also be in DJANGO_ALLOWED_HOSTS and DJANGO_CSRF_TRUSTED_ORIGINS
+# NB: must be localhost to test Google login
+VITE_SITE_DOMAIN="localhost"
 LETSENCRYPT_EMAIL_ADDRESS="letsencrypt@example.com"
 LETSENCRYPT_ENDPOINT="https://acme-staging-v02.api.letsencrypt.org/directory" # LetsEncrypt staging endpoint for testing (https://acme-staging-v02.api.letsencrypt.org/directory) so as not to hit rate limits.
 TLS_SOURCE="internal" # or use "acme" for LetsEncrypt
@@ -11,8 +12,14 @@ POSTGRES_USER="dgcapp"
 POSTGRES_PORT=5432
 POSTGRES_HOST="postgres"
 
-# DEMO SPA OAUTH
-VITE_DEMO_OAUTH_SERVER=""
-VITE_DEMO_OAUTH_CLIENT_ID=""
-VITE_DEMO_OAUTH_CLIENT_SECRET=""
-DEMO_OAUTH_ISSUER=""
+SESSION_JWT_AUDIENCE="uk.ac.rcpch.digital_growth_charts_app"
+SESSION_JWT_ISSUER="uk.ac.rcpch.digital_growth_charts_app_backend"
+SESSION_JWT_EXPIRY_SECONDS=3600  # 1 hour
+
+VITE_MICROSOFT_OAUTH_SERVER=""
+VITE_MICROSOFT_OAUTH_CLIENT_ID=""
+MICROSOFT_OAUTH_ISSUER=""
+
+VITE_GOOGLE_OAUTH_SERVER=""
+VITE_GOOGLE_OAUTH_CLIENT_ID=""
+GOOGLE_OAUTH_ISSUER=""

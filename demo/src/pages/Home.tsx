@@ -1,46 +1,18 @@
 import { useState, useEffect } from 'preact/hooks';
-import * as client from 'openid-client';
 
-import { getPatients, addPatient, deletePatient, updatePatient, testBackend, sharePatient, Patient, Organisation, getOrganisations, createDefaultOrganisation, shareOrganisation } from '../api';
+import { testBackend, Organisation, getOrganisations, createDefaultOrganisation, refreshAccessToken} from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
-
-async function login() {
-  const config = await client.discovery(
-    new URL(import.meta.env.VITE_DEMO_OAUTH_SERVER),
-    import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID,
-    {
-      client_secret: import.meta.env.VITE_DEMO_OAUTH_CLIENT_SECRET,
-    }
-  );
-
-  const code_verifier = client.randomPKCECodeVerifier();
-  const code_challenge = await client.calculatePKCECodeChallenge(code_verifier);
-
-  const state = client.randomState();
-
-  const parameters = {
-    redirect_uri: 'https://dgc-app-backend.localhost/demo/oauth-callback',
-    scope: `${import.meta.env.VITE_DEMO_OAUTH_CLIENT_ID}/.default`,
-    code_challenge,
-    code_challenge_method: 'S256',
-    state
-  }
-
-  const authUrl = client.buildAuthorizationUrl(config, parameters);
-
-  sessionStorage['code_verifier'] = code_verifier;
-  sessionStorage['state'] = state;
-
-  window.location.href = authUrl.href;
-}
+import { AuthData, clearAuthData, getAuthData } from '../auth';
+import { login, MICROSOFT_OAUTH_SERVER, GOOGLE_OAUTH_SERVER } from '../oauth';
 
 export function Home() {
-  const [token, setToken] = useState(localStorage.access_token);
-
+  const [authData, setAuthData] = useState<AuthData | undefined>(getAuthData());
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
 
+  const accessToken = authData?.access_token;
+
   useEffect(() => {
-    if(token) {
+    if(accessToken) {
       getOrganisations().then((organisations) => {
         if(organisations.length === 0) {
           createDefaultOrganisation().then(org => setOrganisations([org]));
@@ -51,36 +23,48 @@ export function Home() {
     } else {
       setOrganisations([]);
     }
-  }, [token]);
-
-  const name = token ? JSON.parse(atob(token.split('.')[1])).unique_name : null;
+  }, [accessToken]);
 
   function onTestFormSubmit(e: Event) {
     e.preventDefault();
     testBackend();
   }
 
-  function onLoginFormSubmit(e: Event) {
+  function onTestRefreshToken(e: Event) {
     e.preventDefault();
-    if (token) {
-      delete localStorage['access_token'];
-      setToken('');
-      setOrganisations([]);
-    } else {
-      login();
-    }
+    refreshAccessToken();
+  }
+
+  function onLoginWithMicrosoft(e: Event) {
+    e.preventDefault();
+    login(MICROSOFT_OAUTH_SERVER);
+  }
+
+  function onLoginWithGoogle(e: Event) {
+    e.preventDefault();
+    login(GOOGLE_OAUTH_SERVER);
+  }
+
+  function onLogout(e: Event) {
+    e.preventDefault();
+    clearAuthData();
+    setAuthData(null);
+    setOrganisations([]);
   };
 
 	return (
 		<div id="app" class="container">
-      {token ?
+      {authData ?
         <>  
           <h3 id="sub">
-            {name ? `Logged in as: ${name}` : ''}
+            Logged in as {authData.name} ({authData.email})
           </h3>
           <hr />
           <form onSubmit={onTestFormSubmit}>
             <input type="submit" value="Test Backend" />
+          </form>
+          <form onSubmit={onTestRefreshToken}>
+            <input type="submit" value="Test Refresh Token" />
           </form>
           <hr />
           {organisations.map(organisation => (
@@ -91,9 +75,21 @@ export function Home() {
           ))}
         </>
       : ''}
-			<form onSubmit={onLoginFormSubmit}>
-				<input type="submit" value={token ? 'Logout' : 'Login'} />
-			</form>
+      {!authData && MICROSOFT_OAUTH_SERVER ?
+        <form onSubmit={onLoginWithMicrosoft}>
+          <input type="submit" value="Login with Microsoft" />
+        </form>
+      : ''}
+      {!authData && MICROSOFT_OAUTH_SERVER ?
+        <form onSubmit={onLoginWithGoogle}>
+          <input type="submit" value="Login with Google" />
+        </form>
+      : ''}
+      {authData ?
+        <form onSubmit={onLogout}>
+          <input type="submit" value="Logout" />
+        </form>
+      : ''}
     </div>
 	);
 }

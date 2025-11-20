@@ -1,3 +1,6 @@
+import { getAuthData, saveAuthData } from "./auth";
+import { refreshToken } from "./oauth";
+
 export type OrganisationUser = {
   name: string;
   email: string;
@@ -16,12 +19,89 @@ export type Patient = {
   date_of_birth: string;
 };
 
-export async function testBackend() {
-  const response = await fetch("/api/hello", {
+export type ExchangeIdTokenResponse = {
+  access_token: string;
+  email: string;
+  name: string;
+}
+
+export async function exchangeIdToken(oauth_server: string, id_token: string): Promise<ExchangeIdTokenResponse> {
+  const response = await fetch("/api/token", {
+    method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
-    }
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ oauth_server, id_token })
   });
+
+  return response.json();
+}
+
+export type ExchangeAccessTokenResponse = {
+  access_token: string;
+}
+
+export async function exchangeAccessToken(oauth_server: string, access_token: string): Promise<ExchangeAccessTokenResponse> {
+  const response = await fetch("/api/token", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ oauth_server, access_token })
+  });
+
+  return response.json();
+}
+
+export async function refreshAccessToken(): Promise<void> {
+  const authData = getAuthData();
+
+  if(authData) {
+    const thirdPartyTokens = await refreshToken(authData.oauth_server, authData.refresh_token);
+    const { access_token } = await exchangeAccessToken(authData.oauth_server, thirdPartyTokens.access_token);
+
+    const newAuthData = {
+      ...authData,
+      access_token,
+      refresh_token: thirdPartyTokens.refresh_token
+    };
+
+    saveAuthData(newAuthData);
+  }
+}
+
+
+async function authFetch(input: RequestInfo, init?: RequestInit, retryOn401: boolean = true): Promise<Response> {
+  const authData = getAuthData();
+
+  if (!authData) {
+    throw new Error("No auth data");
+  }
+
+  const headers = new Headers(init?.headers || {});
+  headers.set('Authorization', `Bearer ${authData.access_token}`);
+
+  const response = await fetch(input, {
+    ...init,
+    headers
+  });
+
+  if(response.status === 401) {
+    const code = (await response.json()).code;
+
+    if(code === "token_expired" && retryOn401) {
+      await refreshAccessToken();
+      return authFetch(input, init, false);
+    }
+
+    throw new Error("Unauthorized");
+  }
+
+  return response;
+}
+
+export async function testBackend() {
+  const response = await authFetch("/api/hello");
 
   const name = await response.text();
 
@@ -29,11 +109,7 @@ export async function testBackend() {
 }
 
 export async function getOrganisations(): Promise<Organisation[]> {
-  const response = await fetch("/api/organisations", {
-    headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
-    }
-  });
+  const response = await authFetch("/api/organisations");
 
   const { organisations } = await response.json();
 
@@ -41,10 +117,9 @@ export async function getOrganisations(): Promise<Organisation[]> {
 }
 
 export async function createDefaultOrganisation(): Promise<Organisation> {
-  const response = await fetch("/api/organisations", {
+  const response = await authFetch("/api/organisations", {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
        'Content-Type': 'application/json'
     },
     body: JSON.stringify({})
@@ -56,11 +131,7 @@ export async function createDefaultOrganisation(): Promise<Organisation> {
 }
 
 export async function getPatients(organisation_id: string): Promise<Patient[]> {
-  const response = await fetch(`/api/organisations/${organisation_id}/patients`, {
-    headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`
-    }
-  });
+  const response = await authFetch(`/api/organisations/${organisation_id}/patients`);
 
   const { patients } = await response.json();
 
@@ -68,10 +139,9 @@ export async function getPatients(organisation_id: string): Promise<Patient[]> {
 }
 
 export async function addPatient(organisation_id: string, name: string, date_of_birth: string): Promise<Patient> {
-  const response = await fetch(`/api/organisations/${organisation_id}/patients`, {
+  const response = await authFetch(`/api/organisations/${organisation_id}/patients`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage['access_token']}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ name, date_of_birth })
@@ -83,22 +153,18 @@ export async function addPatient(organisation_id: string, name: string, date_of_
 }
 
 export async function deletePatient(organisation_id: string, id: string): Promise<void> {
-  await fetch(`/api/organisations/${organisation_id}/patients/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage['access_token']}`,
-      }
-    });
+  await authFetch(`/api/organisations/${organisation_id}/patients/${id}`, {
+    method: 'DELETE'
+  });
 }
 
 export async function updatePatient(organisation_id: string, patient: Patient): Promise<Patient> {
   const body = { ...patient };
   delete body.id;
 
-  const response = await fetch(`/api/organisations/${organisation_id}/patients/${patient.id}`, {
+  const response = await authFetch(`/api/organisations/${organisation_id}/patients/${patient.id}`, {
     method: 'PATCH',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(patient)
@@ -113,10 +179,9 @@ export type InviteLink = {
 }
 
 export async function shareOrganisation(organisation_id: string): Promise<InviteLink> {
-  const response = await fetch(`/api/organisations/${organisation_id}/share`, {
+  const response = await authFetch(`/api/organisations/${organisation_id}/share`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
       'Content-Type': 'application/json'
     }
   });
@@ -134,10 +199,9 @@ export type InviteDetails = {
 }
 
 export async function getInviteDetails(invite_id: string, token: string): Promise<InviteDetails> {
-  const response = await fetch(`/api/invites/${invite_id}/details`, {
+  const response = await authFetch(`/api/invites/${invite_id}/details`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ token })
@@ -149,10 +213,9 @@ export async function getInviteDetails(invite_id: string, token: string): Promis
 }
 
 export async function redeemInvite(invite_id: string, token: string) {
-  await fetch(`/api/invites/${invite_id}/redeem`, {
+  await authFetch(`/api/invites/${invite_id}/redeem`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ token })
@@ -160,10 +223,9 @@ export async function redeemInvite(invite_id: string, token: string) {
 }
 
 export async function removeUserFromOrganisation(organisation_id: string, user_id: string) {
-  await fetch(`/api/organisations/${organisation_id}/users/${user_id}`, {
+  await authFetch(`/api/organisations/${organisation_id}/users/${user_id}`, {
     method: 'DELETE',
     headers: {
-      'Authorization': `Bearer ${localStorage['access_token']}`,
       'Content-Type': 'application/json'
     },
   });

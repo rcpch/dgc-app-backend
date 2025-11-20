@@ -5,7 +5,7 @@
 }
 
 # DJANGO
-{$SITE_DOMAIN} {
+{$VITE_SITE_DOMAIN} {
     tls {$TLS_SOURCE}
 
     # DJANGO

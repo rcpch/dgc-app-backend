@@ -1,6 +1,7 @@
 import os
 import logging
 import uuid
+import jwt
 
 from datetime import date
 from uuid import UUID
@@ -29,13 +30,54 @@ from .crypto import (
 )
 from .auth import (
     AuthBearer,
-    AuthData
+    AuthData,
+    login_with_third_party_id_token,
+    login_with_third_party_access_token,
+    generate_access_token
 )
 
 logger = logging.getLogger(__name__)
 
 
 api = NinjaAPI()
+
+
+@api.exception_handler(jwt.ExpiredSignatureError)
+def on_expired_access_token(request, exc):
+    response = {
+        "code": "token_expired"
+    }
+    return api.create_response(request, response, status=401)
+
+
+class TokenRequestSchema(Schema):
+    oauth_server: str
+    id_token: str | None = None
+    access_token: str | None = None
+
+class TokenResponseSchema(Schema):
+    access_token: str
+    name: str | None = None
+    email: str | None = None
+
+@api.post("/token", response={200: TokenResponseSchema, 404: None})
+def token(request, data: TokenRequestSchema):
+    if data.access_token:
+        auth_data = login_with_third_party_access_token(data.oauth_server, data.access_token)
+    elif data.id_token:
+        auth_data = login_with_third_party_id_token(data.oauth_server, data.id_token)
+    else:
+        return 400, {"detail": "Either id_token or access_token must be provided."}
+    
+    email = auth_data.email
+    name = auth_data.name
+
+    return 200, TokenResponseSchema(
+        access_token=generate_access_token(auth_data.sub),
+        name=auth_data.name,
+        email=auth_data.email
+    )
+
 
 @api.get("/hello", auth=AuthBearer())
 def hello(request):
@@ -105,6 +147,7 @@ def add_organisation(request, data: CreateOrganisationSchema):
 
     encrypted_organisation_key = encrypt_bytes(request.auth.key, organisation_key)
 
+    # TODO MRB: what should we do if these change the next time a user logs in?
     encrypted_user_name = encrypt_str(organisation_f, request.auth.name)
     encrypted_user_email = encrypt_str(organisation_f, request.auth.email)
 
