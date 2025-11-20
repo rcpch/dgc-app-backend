@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'preact/hooks';
 
-import { testBackend, Organisation, getOrganisations, createDefaultOrganisation, refreshAccessToken} from '../api';
+import { testBackend, Organisation, getOrganisations, refreshAccessToken} from '../api';
 import { OrganisationPatientList } from '../components/OrganisationPatients';
 import { AuthData, clearAuthData, getAuthData } from '../auth';
 import { login, MICROSOFT_OAUTH_SERVER, GOOGLE_OAUTH_SERVER } from '../oauth';
@@ -13,13 +13,7 @@ export function Home() {
 
   useEffect(() => {
     if(accessToken) {
-      getOrganisations().then((organisations) => {
-        if(organisations.length === 0) {
-          createDefaultOrganisation().then(org => setOrganisations([org]));
-        } else {
-          setOrganisations(organisations);
-        }
-      });
+      getOrganisations().then(setOrganisations);
     } else {
       setOrganisations([]);
     }

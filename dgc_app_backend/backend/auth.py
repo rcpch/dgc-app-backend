@@ -10,6 +10,7 @@ from ninja.security import HttpBearer
 
 from .models import User
 from .crypto import sha_256, derive_key, salt, encrypt_str, decrypt_str
+from .organisations import create_organisation
 
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,8 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
   key = derive_key(claims["sub"], user.salt, user.iterations)
   
   # TODO MRB: update name and email if they've changed?
+
+  create_organisation(user, key, organisation_name=None)
 
   return AuthData(
     sub=claims["sub"],

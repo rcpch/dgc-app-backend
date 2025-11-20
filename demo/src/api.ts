@@ -116,20 +116,6 @@ export async function getOrganisations(): Promise<Organisation[]> {
   return organisations;
 }
 
-export async function createDefaultOrganisation(): Promise<Organisation> {
-  const response = await authFetch("/api/organisations", {
-    method: 'POST',
-    headers: {
-       'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({})
-  });
-
-  const organisation = await response.json();
-
-  return organisation;
-}
-
 export async function getPatients(organisation_id: string): Promise<Patient[]> {
   const response = await authFetch(`/api/organisations/${organisation_id}/patients`);
 

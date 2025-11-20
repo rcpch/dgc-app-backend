@@ -35,6 +35,7 @@ from .auth import (
     login_with_third_party_access_token,
     generate_access_token
 )
+from .organisations import create_organisation
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,7 @@ class OrganisationUserSchema(Schema):
     name: str
     email: str
     is_current_user: bool
+    is_creator: bool
 
 class OrganisationSchema(Schema):
     id: UUID
@@ -115,11 +117,17 @@ def organisations(request):
 
         users: list[OrganisationUserSchema] = []
         for reg in all_registrations_for_this_organisation:
+            username = decrypt_str(organisation_key_f, reg.encrypted_user_name)
+
+            if organisation_name is None and reg.is_creator:
+                organisation_name = username
+
             users.append(OrganisationUserSchema(
                 id=reg.user.id,
-                name=decrypt_str(organisation_key_f, reg.encrypted_user_name),
+                name=username,
                 email=decrypt_str(organisation_key_f, reg.encrypted_user_email),
-                is_current_user=(reg.user == request.auth.user)
+                is_current_user=(reg.user == request.auth.user),
+                is_creator=reg.is_creator
             ))
         
         ret.append(OrganisationSchema(
@@ -136,32 +144,11 @@ class CreateOrganisationSchema(Schema):
 
 @api.post("/organisations", auth=AuthBearer(), response=OrganisationSchema)
 def add_organisation(request, data: CreateOrganisationSchema):
-    organisation_key = Fernet.generate_key()
-    organisation_f = Fernet(organisation_key)
-
-    encrypted_name = encrypt_str(organisation_f, data.name) if data.name else None
-
-    organisation = Organisation.objects.create(
-        encrypted_name=encrypted_name
-    )
-
-    encrypted_organisation_key = encrypt_bytes(request.auth.key, organisation_key)
-
-    # TODO MRB: what should we do if these change the next time a user logs in?
-    encrypted_user_name = encrypt_str(organisation_f, request.auth.name)
-    encrypted_user_email = encrypt_str(organisation_f, request.auth.email)
-
-    UserOrganisation.objects.create(
-        user=request.auth.user,
-        organisation=organisation,
-        encrypted_organisation_key=encrypted_organisation_key,
-        encrypted_user_name=encrypted_user_name,
-        encrypted_user_email=encrypted_user_email
-    )
+    organisation = create_organisation(request.auth.user, request.auth.key, data.name)
 
     return OrganisationSchema(
         id=organisation.id,
-        name=data.name if data.name else None,
+        name=data.name if data.name else request.auth.name,
         users=[OrganisationUserSchema(
             id=request.auth.user.id,
             name=request.auth.name,
@@ -374,7 +361,7 @@ def organisation_invite_details(request, invite_id: str, data: OrganisationInvit
 
 
 @api.post("/invites/{invite_id}/redeem", auth=AuthBearer(), response={204: None, 401: None})
-def get_patient_from_share(request, invite_id: str, data: OrganisationInviteDetailsRequestSchema):
+def redeem_share_invite(request, invite_id: str, data: OrganisationInviteDetailsRequestSchema):
     try:
         invite = OrganisationInvite.objects.get(id=invite_id)
     except OrganisationInvite.DoesNotExist:
@@ -399,7 +386,8 @@ def get_patient_from_share(request, invite_id: str, data: OrganisationInviteDeta
         organisation=organisation,
         encrypted_organisation_key=encrypted_organisation_key,
         encrypted_user_name=encrypted_user_name,
-        encrypted_user_email=encrypted_user_email
+        encrypted_user_email=encrypted_user_email,
+        is_creator=False
     )
 
     invite.delete()

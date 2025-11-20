@@ -36,6 +36,8 @@ class UserOrganisation(models.Model):
         on_delete=models.CASCADE
     )
 
+    is_creator = models.BooleanField()
+
     # Encrypted with the user key (derived from the user ID)
     encrypted_organisation_key = models.CharField(max_length=300)
 
