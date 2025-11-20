@@ -78,10 +78,16 @@ database_config = {
     "ENGINE": "django.db.backends.postgresql",
     "NAME": os.environ.get("POSTGRES_DB"),
     "USER": os.environ.get("POSTGRES_USER"),
-    "PASSWORD": os.environ.get("POSTGRES_PASSWORD"),
     "HOST": os.environ.get("POSTGRES_HOST"),
     "PORT": os.environ.get("POSTGRES_PORT"),
 }
+
+password_file = os.environ.get("POSTGRES_DB_PASSWORD_FILE")
+
+if password_file:
+    database_config["OPTIONS"] = {"passfile": password_file}
+else:
+    database_config["PASSWORD"] = os.environ.get("POSTGRES_PASSWORD")
 
 DATABASES = {"default": database_config}
 
