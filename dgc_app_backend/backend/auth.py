@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from django.conf import settings
 from ninja.security import HttpBearer
 
-from .models import User
+from .models import User, UserOrganisation
 from .crypto import sha_256, derive_key, salt, encrypt_str, decrypt_str
 from .organisations import create_organisation
 
@@ -93,7 +93,8 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
   
   # TODO MRB: update name and email if they've changed?
 
-  create_organisation(user, key, organisation_name=None)
+  if not UserOrganisation.objects.filter(user=user).exists():
+    create_organisation(user, key, organisation_name=None)
 
   return AuthData(
     sub=claims["sub"],
