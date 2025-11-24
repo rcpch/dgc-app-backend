@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AuthConfig:
   oauth_server: str
-  client_id: str
+  allowed_client_ids: list[str]
 
 @dataclass
 class AuthData:
@@ -35,12 +35,12 @@ def fetch_config(oauthServer: str) -> dict:
     case settings.MICROSOFT_OAUTH_SERVER:
       return AuthConfig(
         oauth_server=settings.MICROSOFT_OAUTH_SERVER,
-        client_id=settings.MICROSOFT_OAUTH_CLIENT_ID
+        allowed_client_ids=settings.MICROSOFT_OAUTH_ALLOWED_CLIENT_IDS
       )
     case settings.GOOGLE_OAUTH_SERVER:
       return AuthConfig(
         oauth_server=settings.GOOGLE_OAUTH_SERVER,
-        client_id=settings.GOOGLE_OAUTH_CLIENT_ID
+        allowed_client_ids=settings.GOOGLE_OAUTH_ALLOWED_CLIENT_IDS
       )
     case _:
       raise ValueError(f"Unknown OAuth server: {oauthServer}")
@@ -61,7 +61,7 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
       token,
       signing_key.key,
       algorithms=signing_algos,
-      audience=config.client_id,
+      audience=config.allowed_client_ids,
       issuer=config.oauth_server,
       strict_aud=True
   )
