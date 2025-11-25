@@ -33,12 +33,9 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [os.environ["VITE_SITE_DOMAIN"]]
 
-CORS_ALLOWED_ORIGINS = [
-    f"https://{os.environ['VITE_SITE_DOMAIN']}"
-]
-
-if os.environ.get("CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ["CORS_ALLOWED_ORIGINS"].split(",")
+# For local dev, as the Flutter port can change
+if DEBUG == True:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # Application definition
 
