@@ -1,5 +1,5 @@
 [project]
-name = "dgc-app-backend-demo"
+name = "dgc-app-backend"
 version = "0.0.0"
 description = "Backend for storing data for the RCPCH Digital Growth Charts app"
 readme = "README.md"
