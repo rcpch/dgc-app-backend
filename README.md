@@ -36,8 +36,8 @@ to try and take advantage of the abuse protection those providers already do.
 
 - Each person who logs in to the app is a `User`.
 - Users are members of an `Organisation`, via `UserOrganisation`.
-- Each `Child` has measurements and are currently in exactly one `Organisation`
-  - TODO MRB: change this to be many to many?
+- Each `Child` has measurements and can be in more than one `Organisation` via `UserOrganisation`
+  - Although not yet implemented the idea is that there is a single record for a child per linkage identifier (eg NHS number)
 
 Access to an organisation grants you read/write access to all children within it. For parents and carers
 they will have their own organisation with just their children and invite in others. We envisage larger
