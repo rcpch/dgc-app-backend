@@ -112,9 +112,6 @@ def organisations(request):
         for reg in all_registrations_for_this_organisation:
             username = decrypt_str(organisation_key_f, reg.encrypted_user_name)
 
-            if organisation_name is None and reg.is_creator:
-                organisation_name = username
-
             users.append(OrganisationUserSchema(
                 id=reg.user.id,
                 name=username,

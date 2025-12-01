@@ -6,6 +6,7 @@ export type OrganisationUser = {
   name: string;
   email: string;
   is_current_user: boolean;
+  is_creator: boolean;
 }
 
 export type Organisation = {

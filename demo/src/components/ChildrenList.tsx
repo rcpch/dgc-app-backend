@@ -3,6 +3,19 @@ import { addChild, removeChild, getChildren, Organisation, Child, removeUserFrom
 import { CreateChildRow } from "./CreateChildRow";
 import { ChildRow } from "./ChildRow";
 
+function organisationName(organisation: Organisation): string {
+  if(organisation.name) {
+    return organisation.name;
+  }
+
+  const creator = organisation.users.find(user => user.is_creator);
+  if(creator) {
+    return `${creator.name}'s Organisation`;
+  }
+  
+  return organisation.id;
+}
+
 export function ChildrenList({ organisation }: { organisation: Organisation }) {
   const [children, setChildren] = useState<Child[]>([]);
 
@@ -56,7 +69,7 @@ export function ChildrenList({ organisation }: { organisation: Organisation }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
         <h3>
-          {organisation.name ?? organisation.id}
+          {organisationName(organisation)}
         </h3>
         {sharedWithUsers.length > 0 &&
           <ul>
