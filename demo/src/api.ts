@@ -139,7 +139,7 @@ export async function addChild(organisation_id: string, name: string, date_of_bi
     return child;
 }
 
-export async function deleteChild(organisation_id: string, id: string): Promise<void> {
+export async function removeChild(organisation_id: string, id: string): Promise<void> {
   await authFetch(`/api/organisations/${organisation_id}/children/${id}`, {
     method: 'DELETE'
   });

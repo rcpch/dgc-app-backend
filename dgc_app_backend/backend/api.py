@@ -9,6 +9,7 @@ from typing import Tuple
 
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
+from django.db import transaction
 
 from .models import (
     Organisation,
@@ -278,17 +279,23 @@ def update_child(request, organisation_id: str, child_id: str, data: UpdateChild
 def delete_child(request, organisation_id: str, child_id: str):
     (organisation, _, _) = get_organisation_or_404(request.auth, organisation_id)
 
-    # Shouldn't be able to delete just by knowing the ID
-    try:
-        child = Child.objects.get(
-            id=child_id,
-            organisation=organisation
-        )
-    except Child.DoesNotExist:
-        return 404, None
+    with transaction.atomic():
+        # Shouldn't be able to delete just by knowing the ID
+        try:
+            child_organisation = ChildOrganisation.objects.get(
+                child__id=child_id,
+                organisation=organisation
+            )
+        except ChildOrganisation.DoesNotExist:
+            return 404, None
 
-    child.delete()
-    return 204, None
+        child_organisation.delete()
+
+        if not ChildOrganisation.objects.filter(child__id=child_id).exists():
+            # No more orgs have this child, delete the child record too
+            Child.objects.filter(id=child_id).delete()
+    
+        return 204, None
 
 
 class InviteCreateSchema(Schema):

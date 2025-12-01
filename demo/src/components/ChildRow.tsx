@@ -4,10 +4,10 @@ import { Child } from "../api";
 type ChildRowProps = {
   child: Child;
   onSave: (name: string, date_of_birth: string) => void;
-  onDelete: () => void;
+  onRemove: () => void;
 }
 
-export function ChildRow({ child, onSave, onDelete }: ChildRowProps) {
+export function ChildRow({ child, onSave, onRemove }: ChildRowProps) {
   const [editing, setEditing] = useState(false);
 
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -76,8 +76,8 @@ export function ChildRow({ child, onSave, onDelete }: ChildRowProps) {
             </button>
             <button
               class="pico-background-red"
-              onClick={onDelete}>
-              Delete
+              onClick={onRemove}>
+              Delete Child Data
             </button>
           </>
         )}

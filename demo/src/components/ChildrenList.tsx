@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { addChild, deleteChild, getChildren, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
+import { addChild, removeChild, getChildren, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
 import { CreateChildRow } from "./CreateChildRow";
 import { ChildRow } from "./ChildRow";
 
@@ -29,8 +29,8 @@ export function ChildrenList({ organisation }: { organisation: Organisation }) {
     );
   }
 
-  async function onDeleteChild(id: string) {
-    await deleteChild(organisation.id, id);
+  async function onRemoveChild(id: string) {
+    await removeChild(organisation.id, id);
     setChildren(children.filter(c => c.id !== id));
   }
 
@@ -106,8 +106,8 @@ export function ChildrenList({ organisation }: { organisation: Organisation }) {
             onSave={(name, date_of_birth) => {
               onSaveEdit(child.id, name, date_of_birth);
             }}
-            onDelete={() => {
-              onDeleteChild(child.id);
+            onRemove={() => {
+              onRemoveChild(child.id);
             }}
           />
         ))}
