@@ -5,8 +5,9 @@ import { Home } from './pages/Home';
 import { OAuthCallback } from './pages/OAuthCallback';
 import { Invite } from './pages/Invite';
 import { NotFound } from './pages/_404';
-import { Organisations } from './pages/organisations';
+import { Organisations } from './pages/Organisations';
 import { AppStateCtx, createAppState } from './state';
+import { Login } from './pages/Login';
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
             <Route path="/demo/organisations" component={Organisations} />
             <Route path="/demo/oauth-callback" component={OAuthCallback} />
             <Route path="/demo/invite" component={Invite} />
+            <Route path="/demo/login" component={Login} />
             <Route path="/demo" component={Home} />
             <Route default component={NotFound} />
           </Router>

@@ -2,13 +2,12 @@ import { useState, useEffect } from 'preact/hooks';
 
 import { testBackend, Organisation, getOrganisations, refreshAccessToken} from '../api';
 import { ChildrenList } from '../components/ChildrenList';
-import { AuthData, clearAuthData, getAuthData } from '../auth';
-import { login, MICROSOFT_OAUTH_SERVER, GOOGLE_OAUTH_SERVER } from '../oauth';
 import { Nav } from '../components/Nav';
-import { logout, useAppState } from '../state';
+import { useLoggedInAppState } from '../state';
 
 export function Home() {
-  const appState = useAppState();
+  const appState = useLoggedInAppState();
+
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
 
   const authData = appState.authData.value;
@@ -32,21 +31,6 @@ export function Home() {
     refreshAccessToken();
   }
 
-  function onLoginWithMicrosoft(e: Event) {
-    e.preventDefault();
-    login(MICROSOFT_OAUTH_SERVER);
-  }
-
-  function onLoginWithGoogle(e: Event) {
-    e.preventDefault();
-    login(GOOGLE_OAUTH_SERVER);
-  }
-
-  function onLogout(e: Event) {
-    e.preventDefault();
-    appState.logout();
-  };
-
 	return (
 		<div id="app" class="container">
       <Nav appState={appState} />
@@ -66,16 +50,6 @@ export function Home() {
             </> 
           ))}
         </>
-      : ''}
-      {!authData && MICROSOFT_OAUTH_SERVER ?
-        <form onSubmit={onLoginWithMicrosoft}>
-          <input type="submit" value="Login with Microsoft" />
-        </form>
-      : ''}
-      {!authData && MICROSOFT_OAUTH_SERVER ?
-        <form onSubmit={onLoginWithGoogle}>
-          <input type="submit" value="Login with Google" />
-        </form>
       : ''}
     </div>
 	);
