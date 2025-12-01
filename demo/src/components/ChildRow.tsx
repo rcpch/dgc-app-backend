@@ -1,13 +1,13 @@
 import { useState } from "preact/hooks";
-import { Patient } from "../api";
+import { Child } from "../api";
 
-type PatientRowProps = {
-  patient: Patient;
+type ChildRowProps = {
+  child: Child;
   onSave: (name: string, date_of_birth: string) => void;
   onDelete: () => void;
 }
 
-export function PatientRow({ patient, onSave, onDelete }: PatientRowProps) {
+export function ChildRow({ child, onSave, onDelete }: ChildRowProps) {
   const [editing, setEditing] = useState(false);
 
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -15,8 +15,8 @@ export function PatientRow({ patient, onSave, onDelete }: PatientRowProps) {
 
   function onStartEdit() {
     setEditing(true);
-    setEditingName(patient.name);
-    setEditingDateOfBirth(patient.date_of_birth);
+    setEditingName(child.name);
+    setEditingDateOfBirth(child.date_of_birth);
   }
 
   function onCancelEdit() {
@@ -33,7 +33,7 @@ export function PatientRow({ patient, onSave, onDelete }: PatientRowProps) {
   }
 
   return (
-    <tr key={patient.id}>
+    <tr key={child.id}>
       <td>
         {editing ? (
           <form onSubmit={onSubmit}>
@@ -45,7 +45,7 @@ export function PatientRow({ patient, onSave, onDelete }: PatientRowProps) {
             />
           </form>
         ) : (
-          patient.name
+          child.name
         )}
       </td>
       <td>
@@ -56,7 +56,7 @@ export function PatientRow({ patient, onSave, onDelete }: PatientRowProps) {
             onChange={e => setEditingDateOfBirth((e.target as HTMLInputElement).value)}
           />
         ) : (
-          patient.date_of_birth
+          child.date_of_birth
         )}
       </td>
       <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>

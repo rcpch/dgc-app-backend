@@ -53,7 +53,7 @@ class UserOrganisation(models.Model):
         unique_together = ('user', 'organisation')
 
 
-class Patient(models.Model):
+class Child(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     # Encrypted with the organisation key

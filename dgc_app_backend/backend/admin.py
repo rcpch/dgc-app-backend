@@ -4,7 +4,7 @@ from .models import (
     User,
     Organisation,
     UserOrganisation,
-    Patient,
+    Child,
     OrganisationInvite
 )
 
@@ -20,8 +20,8 @@ class OrganisationAdmin(admin.ModelAdmin):
 class UserOrganisationAdmin(admin.ModelAdmin):
     pass
 
-@admin.register(Patient)
-class PatientAdmin(admin.ModelAdmin):
+@admin.register(Child)
+class ChildAdmin(admin.ModelAdmin):
     pass
 
 @admin.register(OrganisationInvite)

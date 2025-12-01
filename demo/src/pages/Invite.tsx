@@ -13,7 +13,7 @@ export function Invite() {
     getInviteDetails(invite_id, token).then(setInviteDetails);
   }, []);
 
-  async function onAddSharedPatient() {
+  async function onRedeemInvite() {
     await redeemInvite(invite_id, token);
     window.location.href = '/demo/';
   }
@@ -22,9 +22,9 @@ export function Invite() {
     <div class="container">
       {inviteDetails ? (
         <div>
-          <p>Invite to join {inviteDetails.organisation_name ?? inviteDetails.organisation_id} with {inviteDetails.patient_count} patients.</p>
+          <p>Invite to join {inviteDetails.organisation_name ?? inviteDetails.organisation_id} with {inviteDetails.child_count} children.</p>
           <p>{inviteDetails.users.map(user => user.name).join(", ")}</p>
-          <button onClick={onAddSharedPatient}>Join</button>
+          <button onClick={onRedeemInvite}>Join</button>
         </div>
       ) : (
         <p>Loading...</p>

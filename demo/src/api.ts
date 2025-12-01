@@ -2,6 +2,7 @@ import { getAuthData, saveAuthData } from "./auth";
 import { refreshToken } from "./oauth";
 
 export type OrganisationUser = {
+  id: string;
   name: string;
   email: string;
   is_current_user: boolean;
@@ -13,7 +14,7 @@ export type Organisation = {
   name?: string;
 }
 
-export type Patient = {
+export type Child = {
   id: string;
   name: string;
   date_of_birth: string;
@@ -116,16 +117,16 @@ export async function getOrganisations(): Promise<Organisation[]> {
   return organisations;
 }
 
-export async function getPatients(organisation_id: string): Promise<Patient[]> {
-  const response = await authFetch(`/api/organisations/${organisation_id}/patients`);
+export async function getChildren(organisation_id: string): Promise<Child[]> {
+  const response = await authFetch(`/api/organisations/${organisation_id}/children`);
 
-  const { patients } = await response.json();
+  const { children } = await response.json();
 
-  return patients;
+  return children;
 }
 
-export async function addPatient(organisation_id: string, name: string, date_of_birth: string): Promise<Patient> {
-  const response = await authFetch(`/api/organisations/${organisation_id}/patients`, {
+export async function addChild(organisation_id: string, name: string, date_of_birth: string): Promise<Child> {
+  const response = await authFetch(`/api/organisations/${organisation_id}/children`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -133,27 +134,27 @@ export async function addPatient(organisation_id: string, name: string, date_of_
       body: JSON.stringify({ name, date_of_birth })
     });
 
-    const patient = await response.json();
+    const child = await response.json();
 
-    return patient;
+    return child;
 }
 
-export async function deletePatient(organisation_id: string, id: string): Promise<void> {
-  await authFetch(`/api/organisations/${organisation_id}/patients/${id}`, {
+export async function deleteChild(organisation_id: string, id: string): Promise<void> {
+  await authFetch(`/api/organisations/${organisation_id}/children/${id}`, {
     method: 'DELETE'
   });
 }
 
-export async function updatePatient(organisation_id: string, patient: Patient): Promise<Patient> {
-  const body = { ...patient };
+export async function updateChild(organisation_id: string, child: Child): Promise<Child> {
+  const body = { ...child };
   delete body.id;
 
-  const response = await authFetch(`/api/organisations/${organisation_id}/patients/${patient.id}`, {
+  const response = await authFetch(`/api/organisations/${organisation_id}/children/${child.id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(patient)
+    body: JSON.stringify(body)
   });
 
   return response.json();
@@ -180,7 +181,7 @@ export async function shareOrganisation(organisation_id: string): Promise<Invite
 export type InviteDetails = {
   organisation_id: string;
   organisation_name: string | null;
-  patient_count: number;
+  child_count: number;
   users: { name: string }[];
 }
 
@@ -193,9 +194,9 @@ export async function getInviteDetails(invite_id: string, token: string): Promis
     body: JSON.stringify({ token })
   });
 
-  const { organisation_id, organisation_name, patient_count, users } = await response.json();
+  const { organisation_id, organisation_name, child_count, users } = await response.json();
 
-  return { organisation_id, organisation_name, patient_count, users };
+  return { organisation_id, organisation_name, child_count, users };
 }
 
 export async function redeemInvite(invite_id: string, token: string) {

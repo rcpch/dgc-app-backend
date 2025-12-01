@@ -1,10 +1,10 @@
 import { useState, useRef } from "preact/hooks";
 
-type CreatePatientRowProps = {
+type CreateChildRowProps = {
   onSave: (name: string, date_of_birth: string) => void;
 }
 
-export function CreatePatientRow({ onSave }: CreatePatientRowProps) {
+export function CreateChildRow({ onSave }: CreateChildRowProps) {
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('1970-01-01');
 
@@ -27,7 +27,7 @@ export function CreatePatientRow({ onSave }: CreatePatientRowProps) {
             required
             type="text"
             value={name}
-            title="Patient Name"
+            title="Name"
             placeholder="Name"
             onChange={e => setName((e.target as HTMLInputElement).value)}
           />

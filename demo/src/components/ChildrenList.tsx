@@ -1,37 +1,37 @@
 import { useEffect, useState } from "preact/hooks";
-import { addPatient, deletePatient, getPatients, Organisation, Patient, removeUserFromOrganisation, shareOrganisation, updatePatient } from "../api";
-import { CreatePatientRow } from "./CreatePatientRow";
-import { PatientRow } from "./PatientRow";
+import { addChild, deleteChild, getChildren, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
+import { CreateChildRow } from "./CreateChildRow";
+import { ChildRow } from "./ChildRow";
 
-export function OrganisationPatientList({ organisation }: { organisation: Organisation }) {
-  const [patients, setPatients] = useState<Patient[]>([]);
+export function ChildrenList({ organisation }: { organisation: Organisation }) {
+  const [children, setChildren] = useState<Child[]>([]);
 
   useEffect(() => {
-    getPatients(organisation.id).then(setPatients);
+    getChildren(organisation.id).then(setChildren);
   }, [organisation.id])
 
-  async function onCreatePatient(name: string, date_of_birth: string) {
-    const patient = await addPatient(organisation.id, name, date_of_birth);
-    setPatients([...patients, patient]);
+  async function onCreateChild(name: string, date_of_birth: string) {
+    const child = await addChild(organisation.id, name, date_of_birth);
+    setChildren([...children, child]);
   }
 
   async function onSaveEdit(id: string, name: string, date_of_birth: string) {
-    const patient = await updatePatient(organisation.id, {
+    const child = await updateChild(organisation.id, {
       id,
       name,
       date_of_birth,
     });
 
-    setPatients(patients =>
-      patients.map(p =>
-        p.id === id ? patient : p
+    setChildren(children =>
+      children.map(c =>
+        c.id === id ? child : c
       )
     );
   }
 
-  async function onDeletePatient(id: string) {
-    await deletePatient(organisation.id, id);
-    setPatients(patients.filter(p => p.id !== id));
+  async function onDeleteChild(id: string) {
+    await deleteChild(organisation.id, id);
+    setChildren(children.filter(c => c.id !== id));
   }
 
   async function onShareOrganisation() {
@@ -45,7 +45,7 @@ export function OrganisationPatientList({ organisation }: { organisation: Organi
     prompt("Share this link:", shareUrl.toString());
   }
 
-  async function onRemovePatientFromOrganisation(organisation_id: string, user_id: string) {
+  async function onRemoveUserFromOrganisation(organisation_id: string, user_id: string) {
     await removeUserFromOrganisation(organisation_id, user_id);
     window.location.reload();
   }
@@ -79,7 +79,7 @@ export function OrganisationPatientList({ organisation }: { organisation: Organi
                     height: '2em',
                     padding: '0'
                   }}
-                  onClick={() => onRemovePatientFromOrganisation(organisation.id, user.id)}
+                  onClick={() => onRemoveUserFromOrganisation(organisation.id, user.id)}
                 />
               </li>
             ))}
@@ -99,20 +99,20 @@ export function OrganisationPatientList({ organisation }: { organisation: Organi
         </tr>
       </thead>
       <tbody>
-        {patients.map(patient => (
-          <PatientRow
-            key={patient.id}
-            patient={patient}
+        {children.map(child => (
+          <ChildRow
+            key={child.id}
+            child={child}
             onSave={(name, date_of_birth) => {
-              onSaveEdit(patient.id, name, date_of_birth);
+              onSaveEdit(child.id, name, date_of_birth);
             }}
             onDelete={() => {
-              onDeletePatient(patient.id);
+              onDeleteChild(child.id);
             }}
           />
         ))}
-        <CreatePatientRow
-          onSave={onCreatePatient}
+        <CreateChildRow
+          onSave={onCreateChild}
         />
       </tbody>
     </table>

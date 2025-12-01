@@ -7,18 +7,13 @@ from datetime import date
 from uuid import UUID
 from typing import Tuple
 
-from django.conf import settings
-from django.urls import reverse
-
 from ninja import NinjaAPI, Schema
-from ninja.security import HttpBearer
 from cryptography.fernet import Fernet
 
 from .models import (
-    User,
     Organisation,
     UserOrganisation,
-    Patient,
+    Child,
     OrganisationInvite
 )
 from .crypto import (
@@ -188,33 +183,32 @@ def remove_user_from_organisation(request, organisation_id: str, user_id: str):
     return 204, None
 
 
-class PatientUserSchema(Schema):
+class ChildUserSchema(Schema):
     name: str
     email: str
 
-class PatientSchema(Schema):
+class ChildSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
 
     @classmethod
-    def from_encrypted_patient(cls, patient: Patient, organisation_key_f: Fernet) -> "PatientSchema":
-        patient_name = decrypt_str(organisation_key_f, patient.encrypted_name)
+    def from_encrypted_child(cls, child: Child, organisation_key_f: Fernet) -> "ChildSchema":
+        child_name = decrypt_str(organisation_key_f, child.encrypted_name)
 
-        patient_dob_str = decrypt_str(organisation_key_f, patient.encrypted_date_of_birth)
-        patient_dob = date.fromisoformat(patient_dob_str)
-
+        child_dob_str = decrypt_str(organisation_key_f, child.encrypted_date_of_birth)
+        child_dob = date.fromisoformat(child_dob_str)
         return cls(
-            id=patient.id,
-            name=patient_name,
-            date_of_birth=patient_dob
+            id=child.id,
+            name=child_name,
+            date_of_birth=child_dob
         )
 
-class PatientsSchema(Schema):
-    patients: list[PatientSchema]
+class ChildrenSchema(Schema):
+    children: list[ChildSchema]
 
-@api.get("/organisations/{organisation_id}/patients", auth=AuthBearer(), response={200: PatientsSchema, 404: None})
-def patients(request, organisation_id: str):
+@api.get("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildrenSchema, 404: None})
+def children(request, organisation_id: str):
     try:
         registration = UserOrganisation.objects.get(
             user=request.auth.user,
@@ -225,73 +219,72 @@ def patients(request, organisation_id: str):
 
     (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
 
-    patients = [PatientSchema.from_encrypted_patient(p, organisation_key_f) for p in registration.organisation.patient_set.all()]
+    children = [ChildSchema.from_encrypted_child(c, organisation_key_f) for c in registration.organisation.child_set.all()]
 
-    return {"patients": patients}
+    return {"children": children}
 
 
-class NewPatientSchema(Schema):
+class NewChildSchema(Schema):
     name: str
     date_of_birth: date
 
-@api.post("/organisations/{organisation_id}/patients", auth=AuthBearer(), response={200: PatientSchema, 404: None})
-def add_patient(request, organisation_id: str, data: NewPatientSchema):
+@api.post("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildSchema, 404: None})
+def add_child(request, organisation_id: str, data: NewChildSchema):
     (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
     encrypted_name = encrypt_str(organisation_key_f, data.name)
     encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
 
-    patient = Patient.objects.create(
+    child = Child.objects.create(
         encrypted_name=encrypted_name,
         encrypted_date_of_birth=encrypted_date_of_birth,
         organisation=organisation
     )
 
-    return PatientSchema.from_encrypted_patient(patient, organisation_key_f)
+    return ChildSchema.from_encrypted_child(child, organisation_key_f)
 
 
-class UpdatePatientSchema(Schema):
+class UpdateChildSchema(Schema):
     name: str | None = None
     date_of_birth: date | None = None
 
-@api.patch("/organisations/{organisation_id}/patients/{patient_id}", auth=AuthBearer(), response={200: PatientSchema, 404: None})
-def update_patient(request, organisation_id: str, patient_id: str, data: UpdatePatientSchema):
+@api.patch("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema, 404: None})
+def update_child(request, organisation_id: str, child_id: str, data: UpdateChildSchema):
     (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
     try:
-        patient = Patient.objects.get(
-            id=patient_id,
+        child = Child.objects.get(
+            id=child_id,
             organisation=organisation
         )
-    except Patient.DoesNotExist:
+    except Child.DoesNotExist:
         return 404, None
 
     if data.name is not None:
-        patient.encrypted_name = encrypt_str(organisation_key_f, data.name)
-
+        child.encrypted_name = encrypt_str(organisation_key_f, data.name)
     if data.date_of_birth is not None:
-        patient.encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
+        child.encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
 
-    patient.save()
+    child.save()
 
-    ret = PatientSchema.from_encrypted_patient(patient, organisation_key_f)
+    ret = ChildSchema.from_encrypted_child(child, organisation_key_f)
 
     return 200, ret
 
-@api.delete("/organisations/{organisation_id}/patients/{patient_id}", auth=AuthBearer(), response={204: None, 404: None})
-def delete_patient(request, organisation_id: str, patient_id: str):
+@api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None, 404: None})
+def delete_child(request, organisation_id: str, child_id: str):
     (organisation, _, _) = get_organisation_or_404(request.auth, organisation_id)
 
     # Shouldn't be able to delete just by knowing the ID
     try:
-        patient = Patient.objects.get(
-            id=patient_id,
+        child = Child.objects.get(
+            id=child_id,
             organisation=organisation
         )
-    except Patient.DoesNotExist:
+    except Child.DoesNotExist:
         return 404, None
 
-    patient.delete()
+    child.delete()
     return 204, None
 
 
@@ -335,7 +328,7 @@ class OrganisationInviteDetailsUserSchema(Schema):
 class OrganisationInviteDetailsSchema(Schema):
     organisation_id: UUID
     organisation_name: str | None = None
-    patient_count: int
+    child_count: int
     users: list[OrganisationInviteDetailsUserSchema]
 
 @api.post("/invites/{invite_id}/details", auth=AuthBearer(), response={200: OrganisationInviteDetailsSchema, 401: None})
@@ -350,12 +343,12 @@ def organisation_invite_details(request, invite_id: str, data: OrganisationInvit
     organisation = invite.organisation
     organisation_name = decrypt_str(Fernet(organisation_key), organisation.encrypted_name) if organisation.encrypted_name else None
 
-    patient_count = organisation.patient_set.count()
+    child_count = organisation.child_set.count()
 
     return 200, OrganisationInviteDetailsSchema(
         organisation_id=organisation.id,
         organisation_name=organisation_name,
-        patient_count=patient_count,
+        child_count=child_count,
         users=[]
     )
 

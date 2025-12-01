@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'preact/hooks';
 
 import { testBackend, Organisation, getOrganisations, refreshAccessToken} from '../api';
-import { OrganisationPatientList } from '../components/OrganisationPatients';
+import { ChildrenList } from '../components/ChildrenList';
 import { AuthData, clearAuthData, getAuthData } from '../auth';
 import { login, MICROSOFT_OAUTH_SERVER, GOOGLE_OAUTH_SERVER } from '../oauth';
 
@@ -63,7 +63,7 @@ export function Home() {
           <hr />
           {organisations.map(organisation => (
             <>
-              <OrganisationPatientList key={organisation.id} organisation={organisation} />
+              <ChildrenList key={organisation.id} organisation={organisation} />
               <hr />
             </> 
           ))}

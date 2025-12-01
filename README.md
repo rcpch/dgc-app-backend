@@ -36,15 +36,15 @@ to try and take advantage of the abuse protection those providers already do.
 
 - Each person who logs in to the app is a `User`.
 - Users are members of an `Organisation`, via `UserOrganisation`.
-- Children with measurements are a `Patient`, currently in exactly one `Organisation`
+- Each `Child` has measurements and are currently in exactly one `Organisation`
   - TODO MRB: change this to be many to many?
 
-Access to an organisation grants you read/write access to all patients within it. For parents and carers
+Access to an organisation grants you read/write access to all children within it. For parents and carers
 they will have their own organisation with just their children and invite in others. We envisage larger
 organisations to map to professional settings who want to use the app and not an EPR growth chart integration,
 but this will be in the future.
 
-Some patient data is encrypted as a defense against the database ever leaking. Patient data is encrypted with
+Some child data is encrypted as a defense against the database ever leaking. Identifying data is encrypted with
 a key per organisation. The organisation key is not stored in the database directly but is stored encrypted
 with a key statically derived (PBKDF2HMAC) from the `sub` claim in the token from the login provider. Data is
 encrypted using the [Fernet](https://cryptography.io/en/latest/fernet/) helper from the Python cryptography library.
@@ -71,9 +71,9 @@ Joining an org involves decrypting the key, checking it works and then writing a
 | UserOrganisation   | is_creator                 | -              | Used to derive a name for the organisation if none set (e.g. organisation is a single one for a parent/carer user)                                                                 |
 | UserOrganisation   | encrypted_user_name        | Organisation   | `name` claim. Used to display which users are in the organisation                                                                                                                  |
 | UserOrganisation   | encrypted_user_email       | Organisation   | `email` claim. Used to display which users are in the organisation                                                                                                                 |
-| Patient            | id                         | -              | Generic secure random UUID, stored plaintext.                                                                                                                                      |
-| Patient            | encrypted_name             | Organisation   | Displayed in the UI so the user can select from multiple patients they can see                                                                                                     |
-| Patient            | encrypted_date_of_birth    | Organisation   | Required to call the dGC API                                                                                                                                                       |
+| Child              | id                         | -              | Generic secure random UUID, stored plaintext.                                                                                                                                      |
+| Child              | encrypted_name             | Organisation   | Displayed in the UI so the user can select from multiple children they can see                                                                                                     |
+| Child              | encrypted_date_of_birth    | Organisation   | Required to call the dGC API                                                                                                                                                       |
 | OrganisationInvite | id                         | -              | Generic secure random UUID, stored plaintext. Part of a pair with the randomly generated password, both required to join an org                                                    |
 | OrganisationInvite | salt/iterations            | -              | Configuration for deriving the ephemeral key from the password to decrypt the organisation key                                                                                     |
 | OrganisationInvite | encrypted_organisation_key | Share          | Ronseal                                                                                                                                                                            |
