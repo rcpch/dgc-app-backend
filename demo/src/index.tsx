@@ -5,20 +5,25 @@ import { Home } from './pages/Home';
 import { OAuthCallback } from './pages/OAuthCallback';
 import { Invite } from './pages/Invite';
 import { NotFound } from './pages/_404';
+import { Organisations } from './pages/organisations';
+import { AppStateCtx, createAppState } from './state';
 
 export function App() {
-	return (
-		<LocationProvider>
-			<main>
-				<Router>
-					<Route path="/demo/oauth-callback" component={OAuthCallback} />
-					<Route path="/demo/invite" component={Invite} />
-					<Route path="/demo" component={Home} />
-					<Route default component={NotFound} />
-				</Router>
-			</main>
-		</LocationProvider>
-	);
+  return (
+    <AppStateCtx.Provider value={createAppState()}>
+      <LocationProvider>
+        <main>
+          <Router>
+            <Route path="/demo/organisations" component={Organisations} />
+            <Route path="/demo/oauth-callback" component={OAuthCallback} />
+            <Route path="/demo/invite" component={Invite} />
+            <Route path="/demo" component={Home} />
+            <Route default component={NotFound} />
+          </Router>
+        </main>
+      </LocationProvider>
+    </AppStateCtx.Provider>
+  );
 }
 
 render(<App />, document.getElementById('app'));

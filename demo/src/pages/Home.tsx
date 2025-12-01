@@ -4,11 +4,14 @@ import { testBackend, Organisation, getOrganisations, refreshAccessToken} from '
 import { ChildrenList } from '../components/ChildrenList';
 import { AuthData, clearAuthData, getAuthData } from '../auth';
 import { login, MICROSOFT_OAUTH_SERVER, GOOGLE_OAUTH_SERVER } from '../oauth';
+import { Nav } from '../components/Nav';
+import { logout, useAppState } from '../state';
 
 export function Home() {
-  const [authData, setAuthData] = useState<AuthData | undefined>(getAuthData());
+  const appState = useAppState();
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
 
+  const authData = appState.authData.value;
   const accessToken = authData?.access_token;
 
   useEffect(() => {
@@ -41,19 +44,14 @@ export function Home() {
 
   function onLogout(e: Event) {
     e.preventDefault();
-    clearAuthData();
-    setAuthData(null);
-    setOrganisations([]);
+    appState.logout();
   };
 
 	return (
 		<div id="app" class="container">
+      <Nav appState={appState} />
       {authData ?
-        <>  
-          <h3 id="sub">
-            Logged in as {authData.name} ({authData.email})
-          </h3>
-          <hr />
+        <>
           <form onSubmit={onTestFormSubmit}>
             <input type="submit" value="Test Backend" />
           </form>
@@ -77,11 +75,6 @@ export function Home() {
       {!authData && MICROSOFT_OAUTH_SERVER ?
         <form onSubmit={onLoginWithGoogle}>
           <input type="submit" value="Login with Google" />
-        </form>
-      : ''}
-      {authData ?
-        <form onSubmit={onLogout}>
-          <input type="submit" value="Logout" />
         </form>
       : ''}
     </div>
