@@ -350,7 +350,9 @@ def organisation_invite_details(request, invite_id: str, data: OrganisationInvit
     organisation = invite.organisation
     organisation_name = decrypt_str(Fernet(organisation_key), organisation.encrypted_name) if organisation.encrypted_name else None
 
-    child_count = organisation.child_set.count()
+    child_count = ChildOrganisation.objects.filter(
+        organisation=organisation
+    ).count()
 
     return 200, OrganisationInviteDetailsSchema(
         organisation_id=organisation.id,
