@@ -14,14 +14,14 @@ from .models import (
     Organisation,
     UserOrganisation,
     Child,
+    ChildOrganisation,
     OrganisationInvite
 )
 from .crypto import (
     derive_key,
     decrypt_str,
     encrypt_bytes,
-    encrypt_str,
-    decrypt_bytes
+    encrypt_str
 )
 from .auth import (
     AuthBearer,
@@ -64,9 +64,6 @@ def token(request, data: TokenRequestSchema):
         auth_data = login_with_third_party_id_token(data.oauth_server, data.id_token)
     else:
         return 400, {"detail": "Either id_token or access_token must be provided."}
-    
-    email = auth_data.email
-    name = auth_data.name
 
     return 200, TokenResponseSchema(
         access_token=generate_access_token(auth_data.sub),
@@ -192,18 +189,6 @@ class ChildSchema(Schema):
     name: str
     date_of_birth: date
 
-    @classmethod
-    def from_encrypted_child(cls, child: Child, organisation_key_f: Fernet) -> "ChildSchema":
-        child_name = decrypt_str(organisation_key_f, child.encrypted_name)
-
-        child_dob_str = decrypt_str(organisation_key_f, child.encrypted_date_of_birth)
-        child_dob = date.fromisoformat(child_dob_str)
-        return cls(
-            id=child.id,
-            name=child_name,
-            date_of_birth=child_dob
-        )
-
 class ChildrenSchema(Schema):
     children: list[ChildSchema]
 
@@ -219,9 +204,17 @@ def children(request, organisation_id: str):
 
     (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
 
-    children = [ChildSchema.from_encrypted_child(c, organisation_key_f) for c in registration.organisation.child_set.all()]
+    children = ChildOrganisation.objects.filter(
+        organisation=registration.organisation,
+    ).select_related('child')
 
-    return {"children": children}
+    children = [ChildSchema(
+        id=c.child.id,
+        name=decrypt_str(organisation_key_f, c.encrypted_name),
+        date_of_birth=date.fromisoformat(decrypt_str(organisation_key_f, c.encrypted_date_of_birth))
+    ) for c in children]
+
+    return 200, {"children": children}
 
 
 class NewChildSchema(Schema):
@@ -236,12 +229,20 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
     encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
 
     child = Child.objects.create(
+    )
+
+    ChildOrganisation.objects.create(
         encrypted_name=encrypted_name,
         encrypted_date_of_birth=encrypted_date_of_birth,
+        child=child,
         organisation=organisation
     )
 
-    return ChildSchema.from_encrypted_child(child, organisation_key_f)
+    return 200, ChildSchema(
+        id=child.id,
+        name=data.name,
+        date_of_birth=data.date_of_birth
+    )
 
 
 class UpdateChildSchema(Schema):
@@ -253,23 +254,25 @@ def update_child(request, organisation_id: str, child_id: str, data: UpdateChild
     (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
     try:
-        child = Child.objects.get(
-            id=child_id,
+        child_org = ChildOrganisation.objects.get(
+            child__pk=child_id,
             organisation=organisation
         )
-    except Child.DoesNotExist:
+    except ChildOrganisation.DoesNotExist:
         return 404, None
 
     if data.name is not None:
-        child.encrypted_name = encrypt_str(organisation_key_f, data.name)
+        child_org.encrypted_name = encrypt_str(organisation_key_f, data.name)
     if data.date_of_birth is not None:
-        child.encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
+        child_org.encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
 
-    child.save()
+    child_org.save()
 
-    ret = ChildSchema.from_encrypted_child(child, organisation_key_f)
-
-    return 200, ret
+    return 200, ChildSchema(
+        id=child_org.child.id,
+        name=decrypt_str(organisation_key_f, child_org.encrypted_name),
+        date_of_birth=date.fromisoformat(decrypt_str(organisation_key_f, child_org.encrypted_date_of_birth))
+    )
 
 @api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None, 404: None})
 def delete_child(request, organisation_id: str, child_id: str):

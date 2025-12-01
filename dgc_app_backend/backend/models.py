@@ -56,17 +56,28 @@ class UserOrganisation(models.Model):
 class Child(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # TODO: in the future add plaintext linkage identifiers like NHS number
+
+    def __str__(self):
+        return str(self.id)
+
+
+class ChildOrganisation(models.Model):
     # Encrypted with the organisation key
     encrypted_name = models.CharField(max_length=300)
     encrypted_date_of_birth = models.CharField(max_length=300)
 
+    child = models.ForeignKey(
+        to=Child,
+        on_delete=models.CASCADE
+    )
     organisation = models.ForeignKey(
         to=Organisation,
         on_delete=models.CASCADE
     )
 
-    def __str__(self):
-        return str(self.id)
+    class Meta:
+        unique_together = ('child', 'organisation')
 
 
 # TODO MRB: this needs to expire
