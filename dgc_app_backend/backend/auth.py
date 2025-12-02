@@ -94,15 +94,14 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
   jwks_client = jwt.PyJWKClient(oidc_doc["jwks_uri"])
   signing_key = jwks_client.get_signing_key_from_jwt(token)
 
+  logger.info(config.allowed_client_ids)
+
   claims = jwt.decode(
       token,
       signing_key.key,
       algorithms=signing_algos,
       audience=config.allowed_client_ids,
-      issuer=config.oauth_server,
-      options={
-        "strict_aud": True
-      }
+      issuer=config.oauth_server
   )
 
   return create_user(claims)
