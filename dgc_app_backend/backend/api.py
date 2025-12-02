@@ -11,6 +11,7 @@ from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
 from django.db import transaction
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.shortcuts import get_object_or_404
 
 from .models import (
     Organisation,
@@ -33,7 +34,9 @@ from .auth import (
     login_with_third_party_access_token,
     generate_access_token
 )
-from .organisations import create_organisation
+from .organisations import (
+    create_organisation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +81,17 @@ def token(request, data: TokenRequestSchema):
 @api.get("/hello", auth=AuthBearer())
 def hello(request):
     return request.auth.name
+
+
+def get_organisation_or_404(auth: AuthData, organisation_id: str) -> Tuple[Organisation, bytes, Fernet]:
+    registration = get_object_or_404(UserOrganisation,
+        user=auth.user,
+        organisation__id=organisation_id
+    )
+
+    (organisation_key, organisation_key_f) = registration.decrypt_organisation_key(auth.key)
+
+    return (registration.organisation, organisation_key, organisation_key_f)
 
 
 class OrganisationUserSchema(Schema):
@@ -150,31 +164,15 @@ def add_organisation(request, data: CreateOrganisationSchema):
         )]
     )
 
-def get_organisation_or_404(auth: AuthData, organisation_id: str) -> Tuple[Organisation, Fernet] | Tuple[404, None]:
-    try:
-        registration = UserOrganisation.objects.get(
-            user=auth.user,
-            organisation__id=organisation_id
-        )
-
-        (organisation_key, organisation_key_f) = registration.decrypt_organisation_key(auth.key)
-
-        return (registration.organisation, organisation_key, organisation_key_f)
-    except UserOrganisation.DoesNotExist:
-        return 404, None
-
 # TODO MRB: shouldn't be able to remove the creator of an org?
-@api.delete("/organisations/{organisation_id}/users/{user_id}", auth=AuthBearer(), response={204: None, 404: None})
+@api.delete("/organisations/{organisation_id}/users/{user_id}", auth=AuthBearer(), response={204: None})
 def remove_user_from_organisation(request, organisation_id: str, user_id: str):
     (organisation, _, _) = get_organisation_or_404(request.auth, organisation_id)
 
-    try:
-        user_organisation = UserOrganisation.objects.get(
-            user__id=user_id,
-            organisation=organisation
-        )
-    except UserOrganisation.DoesNotExist:
-        return 404, None
+    user_organisation = get_object_or_404(UserOrganisation,
+        user__id=user_id,
+        organisation=organisation
+    )
 
     user_organisation.delete()
 
@@ -246,7 +244,7 @@ class NewChildSchema(Schema):
     name: str
     date_of_birth: date
 
-@api.post("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildSchema, 404: None})
+@api.post("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildSchema})
 def add_child(request, organisation_id: str, data: NewChildSchema):
     (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
@@ -275,14 +273,11 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
     )
 
 
-@api.put("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={201: None, 404: None})
+@api.put("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={201: None})
 def add_existing_child_to_organisation(request, organisation_id: str, child_id: str):
     (target_organisation, _, target_organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
-    try:
-        child = Child.objects.get(id=child_id)
-    except Child.DoesNotExist:
-        return 404, None
+    child = get_object_or_404(Child, id=child_id)
     
     # Can't add child just by knowing the ID, must check we have access via an existing organisation
     existing_child_org = ChildOrganisation.objects.filter(
@@ -294,13 +289,10 @@ def add_existing_child_to_organisation(request, organisation_id: str, child_id: 
 
     (existing_organisation, _, existing_organisation_key_f) = get_organisation_or_404(request.auth, existing_child_org.organisation.id)
 
-    try:
-        user_organisation = UserOrganisation.objects.get(
-            user=request.auth.user,
-            organisation=target_organisation
-        )
-    except UserOrganisation.DoesNotExist:
-        return 404, None
+    user_organisation = get_object_or_404(UserOrganisation,
+        user=request.auth.user,
+        organisation=target_organisation
+    )
     
     child_key = decrypt_bytes(existing_organisation_key_f, existing_child_org.encrypted_child_key)
     
@@ -317,17 +309,14 @@ class UpdateChildSchema(Schema):
     name: str | None = None
     date_of_birth: date | None = None
 
-@api.patch("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema, 404: None})
+@api.patch("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema})
 def update_child(request, organisation_id: str, child_id: str, data: UpdateChildSchema):
     (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
-    try:
-        child_org = ChildOrganisation.objects.get(
-            child__pk=child_id,
-            organisation=organisation
-        )
-    except ChildOrganisation.DoesNotExist:
-        return 404, None
+    child_org = get_object_or_404(ChildOrganisation,
+        child__pk=child_id,
+        organisation=organisation
+    )
 
     child = child_org.child
     child_f = Fernet(decrypt_bytes(organisation_key_f, child_org.encrypted_child_key))
@@ -345,19 +334,16 @@ def update_child(request, organisation_id: str, child_id: str, data: UpdateChild
         date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
     )
 
-@api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None, 404: None})
+@api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None})
 def delete_child(request, organisation_id: str, child_id: str):
     (organisation, _, _) = get_organisation_or_404(request.auth, organisation_id)
 
     with transaction.atomic():
         # Shouldn't be able to delete just by knowing the ID
-        try:
-            child_organisation = ChildOrganisation.objects.get(
-                child__id=child_id,
-                organisation=organisation
-            )
-        except ChildOrganisation.DoesNotExist:
-            return 404, None
+        child_organisation = get_object_or_404(ChildOrganisation,
+            child__id=child_id,
+            organisation=organisation
+        )
 
         child_organisation.delete()
 
@@ -372,7 +358,7 @@ class InviteCreateSchema(Schema):
     invite_id: UUID
     token: str
 
-@api.post("/organisations/{organisation_id}/share", auth=AuthBearer(), response={200: InviteCreateSchema, 404: None})
+@api.post("/organisations/{organisation_id}/share", auth=AuthBearer(), response={200: InviteCreateSchema})
 def create_invite(request, organisation_id: str):
     # Shouldn't be able to share just by knowing the ID
     (organisation, organisation_key, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
