@@ -46,8 +46,10 @@ but this will be in the future.
 
 Some child data is encrypted as a defense against the database ever leaking. Identifying data is encrypted with
 a key per organisation. The organisation key is not stored in the database directly but is stored encrypted
-with a key statically derived (PBKDF2HMAC) from the `sub` claim in the token from the login provider. Data is
-encrypted using the [Fernet](https://cryptography.io/en/latest/fernet/) helper from the Python cryptography library.
+with a key statically derived (PBKDF2HMAC) from the `sub` claim in the token from the login provider. There is then
+an additional child key to encrypt personal information like date of birth. This is itself stored encrypted with 
+each the key for each organisation the child is associated with. Encryption is performed using the
+[Fernet](https://cryptography.io/en/latest/fernet/) helper from the Python cryptography library.
 
 We don't store `sub` directly but use the SHA-256 hash of it as the user ID. The defense relies on on `sub` being
 random and difficult to guess, such that you couldn't rainbow table the list of IDs in the database. For example,
@@ -69,11 +71,13 @@ Joining an org involves decrypting the key, checking it works and then writing a
 | User               | encrypted_email            | User           | as above                                                                                                                                                                           |
 | Organisation       | encrypted_name             | Organisation   | Name describing the organisation (e.g. Michael's clinic). Encrypted with the organisation key as we have no idea what PII people might put in it                                   |
 | UserOrganisation   | is_creator                 | -              | Used to derive a name for the organisation if none set (e.g. organisation is a single one for a parent/carer user)                                                                 |
+| UserOrganisation   | encrypted_organisation_key | User           |                                                                                                                                                                                    |
 | UserOrganisation   | encrypted_user_name        | Organisation   | `name` claim. Used to display which users are in the organisation                                                                                                                  |
 | UserOrganisation   | encrypted_user_email       | Organisation   | `email` claim. Used to display which users are in the organisation                                                                                                                 |
 | Child              | id                         | -              | Generic secure random UUID, stored plaintext.                                                                                                                                      |
-| ChildOrganisation  | encrypted_name             | Organisation   | Displayed in the UI so the user can select from multiple children they can see                                                                                                     |
-| ChildOrganisation  | encrypted_date_of_birth    | Organisation   | Required to call the dGC API                                                                                                                                                       |
+| Child              | encrypted_name             | Child          | Displayed in the UI so the user can select from multiple children they can see                                                                                                     |
+| Child              | encrypted_date_of_birth    | Child          | Required to call the dGC API                                                                                                                                                       |
+| ChildOrganisation  | encrypted_child_key        | Organisation   |                                                                                                                                                                                    |
 | OrganisationInvite | id                         | -              | Generic secure random UUID, stored plaintext. Part of a pair with the randomly generated password, both required to join an org                                                    |
 | OrganisationInvite | salt/iterations            | -              | Configuration for deriving the ephemeral key from the password to decrypt the organisation key                                                                                     |
 | OrganisationInvite | encrypted_organisation_key | Share          | Ronseal                                                                                                                                                                            |
