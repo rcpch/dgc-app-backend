@@ -142,7 +142,7 @@ def generate_access_token(sub: str) -> str:
   return jwt.encode({
     "iss": settings.SESSION_JWT_ISSUER,
     "aud": settings.SESSION_JWT_AUDIENCE,
-    "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=settings.SESSION_JWT_EXPIRY_SECONDS),
+    "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=settings.SESSION_JWT_EXPIRY_SECONDS),
     "sub": sub
   }, settings.SECRET_KEY, algorithm="HS256")
 
