@@ -12,9 +12,11 @@ def user_fixture():
     })
 
 
+client = TestClient(api)
+
+
 @pytest.mark.django_db
 def test_hello(user_fixture):
-    client = TestClient(api)
     access_token = generate_access_token(user_fixture.sub)
 
     response = client.get("/hello", headers={
@@ -23,3 +25,15 @@ def test_hello(user_fixture):
 
     assert response.status_code == 200
     assert response.text == f"\"{user_fixture.name}\""
+
+
+@pytest.mark.django_db
+def test_initial_organisation_list(user_fixture):
+    access_token = generate_access_token(user_fixture.sub)
+
+    response = client.get("/organisations", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    assert response.status_code == 200
+    assert response.json() == []
