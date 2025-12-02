@@ -1,9 +1,9 @@
-import { useEffect, useState } from "preact/hooks";
 import { addChild, removeChild, getChildrenInOrganisation, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
-import { CreateChildRow } from "./CreateChildRow";
-import { ChildRow } from "./ChildRow";
+import { CreateChildRow } from "./AddChildRow";
+import { ChildRow, ChildWithOrganisations } from "./ChildRow";
+import { useLoggedInAppState } from '../state';
 
-function organisationName(organisation: Organisation): string {
+export function organisationName(organisation: Organisation): string {
   if(organisation.name) {
     return organisation.name;
   }
@@ -16,70 +16,74 @@ function organisationName(organisation: Organisation): string {
   return organisation.id;
 }
 
-export function ChildrenList({ organisation }: { organisation: Organisation }) {
-  const [children, setChildren] = useState<Child[]>([]);
+export function ChildrenList() {
+  const appState = useLoggedInAppState();
 
-  useEffect(() => {
-    getChildrenInOrganisation(organisation.id).then(setChildren);
-  }, [organisation.id])
+  const organisations = appState.organisations.value;
+  const children = appState.children.value;
 
-  async function onCreateChild(name: string, date_of_birth: string) {
-    const child = await addChild(organisation.id, name, date_of_birth);
-    setChildren([...children, child]);
+  async function onAddChild(organisationId: string, name: string, date_of_birth: string) {
+    appState.addChild(organisationId, name, date_of_birth);
   }
 
-  async function onSaveEdit(id: string, name: string, date_of_birth: string) {
-    const child = await updateChild(organisation.id, {
-      id,
-      name,
-      date_of_birth,
-    });
+  // async function onSaveEdit(id: string, name: string, date_of_birth: string) {
+  //   const child = await updateChild(organisation.id, {
+  //     id,
+  //     name,
+  //     date_of_birth,
+  //   });
 
-    setChildren(children =>
-      children.map(c =>
-        c.id === id ? child : c
-      )
+  //   setChildren(children =>
+  //     children.map(c =>
+  //       c.id === id ? child : c
+  //     )
+  //   );
+  // }
+
+  // async function onRemoveChild(id: string) {
+  //   await removeChild(organisation.id, id);
+  //   setChildren(children.filter(c => c.id !== id));
+  // }
+
+  const childrenWithOrgs: ChildWithOrganisations[] = children.map(child => {
+    const organisationsForChild = organisations.filter(org =>
+      child.organisation_ids.includes(org.id)
     );
-  }
 
-  async function onRemoveChild(id: string) {
-    await removeChild(organisation.id, id);
-    setChildren(children.filter(c => c.id !== id));
-  }
+    return {
+      ...child,
+      organisations: organisationsForChild
+    };
+  });
 
-  return <div>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div>
-        <h3>
-          {organisationName(organisation)}
-        </h3>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Birth Date</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {children.map(child => (
-          <ChildRow
-            key={child.id}
-            child={child}
-            onSave={(name, date_of_birth) => {
-              onSaveEdit(child.id, name, date_of_birth);
-            }}
-            onRemove={() => {
-              onRemoveChild(child.id);
-            }}
-          />
-        ))}
-        <CreateChildRow
-          onSave={onCreateChild}
+  return <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Birth Date</th>
+        <th>Organisations</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {childrenWithOrgs.map(childWithOrgs => (
+        <ChildRow
+          key={childWithOrgs.id}
+          childWithOrgs={childWithOrgs}
+          onSave={(name, date_of_birth) => {
+            onSaveEdit(child.id, name, date_of_birth);
+          }}
+          onRemove={() => {
+            onRemoveChild(child.id);
+          }}
         />
-      </tbody>
-    </table>
-  </div>;
+      ))}
+      {organisations.length > 0 && (
+        <CreateChildRow
+          organisations={organisations}
+          onSave={onAddChild}
+        />
+      )}
+    </tbody>
+  </table>;
 }

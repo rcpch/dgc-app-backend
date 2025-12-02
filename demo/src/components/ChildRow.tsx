@@ -1,13 +1,18 @@
 import { useState } from "preact/hooks";
-import { Child } from "../api";
+import { Child, Organisation } from "../api";
+import { organisationName } from "./ChildrenList";
+
+export type ChildWithOrganisations = Child & {
+  organisations: Organisation[];
+}
 
 type ChildRowProps = {
-  child: Child;
+  childWithOrgs: ChildWithOrganisations;
   onSave: (name: string, date_of_birth: string) => void;
   onRemove: () => void;
 }
 
-export function ChildRow({ child, onSave, onRemove }: ChildRowProps) {
+export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
   const [editing, setEditing] = useState(false);
 
   const [editingName, setEditingName] = useState<string | null>(null);
@@ -33,7 +38,7 @@ export function ChildRow({ child, onSave, onRemove }: ChildRowProps) {
   }
 
   return (
-    <tr key={child.id}>
+    <tr key={childWithOrgs.id}>
       <td>
         {editing ? (
           <form onSubmit={onSubmit}>
@@ -45,7 +50,7 @@ export function ChildRow({ child, onSave, onRemove }: ChildRowProps) {
             />
           </form>
         ) : (
-          child.name
+          childWithOrgs.name
         )}
       </td>
       <td>
@@ -56,8 +61,13 @@ export function ChildRow({ child, onSave, onRemove }: ChildRowProps) {
             onChange={e => setEditingDateOfBirth((e.target as HTMLInputElement).value)}
           />
         ) : (
-          child.date_of_birth
+          childWithOrgs.date_of_birth
         )}
+      </td>
+      <td>
+        {childWithOrgs.organisations.map(org => (
+          <span key={org.id}>{organisationName(org)}</span>
+        ))}
       </td>
       <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
         {editing ? (

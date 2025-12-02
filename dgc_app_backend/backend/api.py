@@ -292,7 +292,8 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
     return 200, ChildSchema(
         id=child.id,
         name=data.name,
-        date_of_birth=data.date_of_birth
+        date_of_birth=data.date_of_birth,
+        organisation_ids=[organisation.id]
     )
 
 

@@ -26,12 +26,7 @@ export function Home() {
         <input type="submit" value="Test Refresh Token" />
       </form>
       <hr />
-      {appState.organisations.value.map(organisation => (
-        <>
-          <ChildrenList key={organisation.id} organisation={organisation} />
-          <hr />
-        </> 
-      ))}
+      <ChildrenList />
     </div>
 	);
 }

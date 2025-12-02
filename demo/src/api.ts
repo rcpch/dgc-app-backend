@@ -19,6 +19,7 @@ export type Child = {
   id: string;
   name: string;
   date_of_birth: string;
+  organisation_ids: string[];
 };
 
 export type ExchangeIdTokenResponse = {
