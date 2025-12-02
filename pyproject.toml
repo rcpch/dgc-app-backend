@@ -5,12 +5,23 @@ description = "Backend for storing data for the RCPCH Digital Growth Charts app"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "azure-identity>=1.25.1",
-    "django==5.2.6",
-    "django-ninja==1.4.3",
-    "dotenv>=0.9.9",
-    "httpx>=0.28.1",
-    "psycopg[binary]==3.2.10",
-    "pyjwt[crypto]>=2.10.1",
-    "django-cors-headers>=4.9.0"
+    "azure-identity==1.25.1",
+    "django==5.2.8",
+    "django-ninja==1.5.0",
+    "dotenv==0.9.9",
+    "httpx==0.28.1",
+    "psycopg[binary]==3.3.0",
+    "pyjwt[crypto]==2.10.1",
+    "django-cors-headers==4.9.0"
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "pytest-django>=4.11.1",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "dgc_app_backend.settings"
+python_files = ["test_*.py"]
+addopts = "--reuse-db"

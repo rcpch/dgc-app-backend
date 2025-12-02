@@ -46,26 +46,7 @@ def fetch_config(oauthServer: str) -> dict:
       raise ValueError(f"Unknown OAuth server: {oauthServer}")
 
 
-def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
-  config = fetch_config(oauth_server)
-
-  url = f"{config.oauth_server}/.well-known/openid-configuration"
-  oidc_doc = httpx.get(url).json()
-
-  signing_algos = oidc_doc["id_token_signing_alg_values_supported"]
-
-  jwks_client = jwt.PyJWKClient(oidc_doc["jwks_uri"])
-  signing_key = jwks_client.get_signing_key_from_jwt(token)
-
-  claims = jwt.decode(
-      token,
-      signing_key.key,
-      algorithms=signing_algos,
-      audience=config.allowed_client_ids,
-      issuer=config.oauth_server,
-      strict_aud=True
-  )
-
+def create_user(claims) -> AuthData:
   # Extremely important! Don't store the actual user ID in the database as we treat it as a secret
   # to derive the per user encryption key
   user_id = sha_256(claims["sub"])
@@ -100,6 +81,30 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
     email=claims["email"],
     key=key
   )
+
+
+def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
+  config = fetch_config(oauth_server)
+
+  url = f"{config.oauth_server}/.well-known/openid-configuration"
+  oidc_doc = httpx.get(url).json()
+
+  signing_algos = oidc_doc["id_token_signing_alg_values_supported"]
+
+  jwks_client = jwt.PyJWKClient(oidc_doc["jwks_uri"])
+  signing_key = jwks_client.get_signing_key_from_jwt(token)
+
+  logger.info(config.allowed_client_ids)
+
+  claims = jwt.decode(
+      token,
+      signing_key.key,
+      algorithms=signing_algos,
+      audience=config.allowed_client_ids,
+      issuer=config.oauth_server
+  )
+
+  return create_user(claims)
 
 
 def login_with_third_party_access_token(oauth_server: str, token: str) -> AuthData:
@@ -138,7 +143,7 @@ def generate_access_token(sub: str) -> str:
   return jwt.encode({
     "iss": settings.SESSION_JWT_ISSUER,
     "aud": settings.SESSION_JWT_AUDIENCE,
-    "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=settings.SESSION_JWT_EXPIRY_SECONDS),
+    "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=settings.SESSION_JWT_EXPIRY_SECONDS),
     "sub": sub
   }, settings.SECRET_KEY, algorithm="HS256")
 
@@ -153,7 +158,9 @@ class AuthBearer(HttpBearer):
       algorithms=["HS256"],
       audience=settings.SESSION_JWT_AUDIENCE,
       issuer=settings.SESSION_JWT_ISSUER,
-      strict_aud=True
+      options={
+        "strict_aud": True
+      }
     )
 
     user_id = sha_256(claims["sub"])

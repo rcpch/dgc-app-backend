@@ -144,7 +144,8 @@ def add_organisation(request, data: CreateOrganisationSchema):
             id=request.auth.user.id,
             name=request.auth.name,
             email=request.auth.email,
-            is_current_user=True
+            is_current_user=True,
+            is_creator=True
         )]
     )
 
@@ -252,6 +253,44 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
         name=data.name,
         date_of_birth=data.date_of_birth
     )
+
+
+@api.put("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={201: None, 404: None})
+def add_existing_child_to_organisation(request, organisation_id: str, child_id: str):
+    (target_organisation, _, target_organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
+
+    try:
+        child = Child.objects.get(id=child_id)
+    except Child.DoesNotExist:
+        return 404, None
+    
+    # Can't add child just by knowing the ID, must check we have access via an existing organisation
+    existing_child_org = ChildOrganisation.objects.filter(
+        child=child,
+        organisation__pk__in=UserOrganisation.objects.filter(
+            user=request.auth.user
+        ).values("organisation__id")
+    ).first()
+
+    (existing_organisation, _, existing_organisation_key_f) = get_organisation_or_404(request.auth, existing_child_org.organisation.id)
+
+    try:
+        user_organisation = UserOrganisation.objects.get(
+            user=request.auth.user,
+            organisation=target_organisation
+        )
+    except UserOrganisation.DoesNotExist:
+        return 404, None
+    
+    child_key = decrypt_bytes(existing_organisation_key_f, existing_child_org.encrypted_child_key)
+    
+    ChildOrganisation.objects.create(
+        encrypted_child_key=encrypt_bytes(target_organisation_key_f, child_key),
+        child=child,
+        organisation=target_organisation
+    )
+
+    return 201, None
 
 
 class UpdateChildSchema(Schema):

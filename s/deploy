@@ -1,0 +1,7 @@
+#!/bin/bash -e
+
+cp envs/env-template envs/.env
+
+docker compose up -d
+s/test
+docker compose down

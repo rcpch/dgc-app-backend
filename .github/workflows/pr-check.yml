@@ -1,0 +1,18 @@
+name: Run PR checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  pr-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full code repo
+        uses: actions/checkout@v4
+
+      - name: Run PR check script
+        run: s/pr-check
