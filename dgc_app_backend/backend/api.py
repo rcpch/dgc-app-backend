@@ -202,7 +202,7 @@ def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisatio
 
 
 @api.get("/children", auth=AuthBearer(), response=ChildrenSchema)
-def children_2(request):
+def children(request):
     qs = Child.objects.filter(
         childorganisation__organisation__userorganisation__user=request.auth.user
     ).annotate(
@@ -240,28 +240,6 @@ def children_2(request):
         ))
 
     return 200, { "children": rows }
-
-
-# TODO MRB: replace with cross organisation endpoint
-@api.get("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildrenSchema, 404: None})
-def children(request, organisation_id: str):
-    try:
-        registration = UserOrganisation.objects.get(
-            user=request.auth.user,
-            organisation__id=organisation_id
-        )
-    except UserOrganisation.DoesNotExist:
-        return 404, None
-
-    (_, organisation_key_f) = registration.decrypt_organisation_key(request.auth.key)
-
-    children = ChildOrganisation.objects.filter(
-        organisation=registration.organisation,
-    ).select_related('child')
-
-    children = [decrypt_child_fields(organisation_key_f, c) for c in children]
-
-    return 200, {"children": children}
 
 
 class NewChildSchema(Schema):
