@@ -7,7 +7,7 @@ on:
       - live
 
 jobs:
-  pr-check:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
