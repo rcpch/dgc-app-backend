@@ -22,7 +22,8 @@ from .crypto import (
     derive_key,
     decrypt_str,
     encrypt_bytes,
-    encrypt_str
+    encrypt_str,
+    decrypt_bytes
 )
 from .auth import (
     AuthBearer,
@@ -190,6 +191,16 @@ class ChildSchema(Schema):
 class ChildrenSchema(Schema):
     children: list[ChildSchema]
 
+def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisation) -> ChildSchema:
+    child = child_org.child
+    child_f = Fernet(decrypt_bytes(organisation_key_f, child_org.encrypted_child_key))
+
+    return ChildSchema(
+        id=child.id,
+        name=decrypt_str(child_f, child.encrypted_name),
+        date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
+    )
+
 @api.get("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildrenSchema, 404: None})
 def children(request, organisation_id: str):
     try:
@@ -206,11 +217,7 @@ def children(request, organisation_id: str):
         organisation=registration.organisation,
     ).select_related('child')
 
-    children = [ChildSchema(
-        id=c.child.id,
-        name=decrypt_str(organisation_key_f, c.encrypted_name),
-        date_of_birth=date.fromisoformat(decrypt_str(organisation_key_f, c.encrypted_date_of_birth))
-    ) for c in children]
+    children = [decrypt_child_fields(organisation_key_f, c) for c in children]
 
     return 200, {"children": children}
 
@@ -223,15 +230,19 @@ class NewChildSchema(Schema):
 def add_child(request, organisation_id: str, data: NewChildSchema):
     (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
 
-    encrypted_name = encrypt_str(organisation_key_f, data.name)
-    encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
+    child_key = Fernet.generate_key()
+    child_f = Fernet(child_key)
+
+    encrypted_name = encrypt_str(child_f, data.name)
+    encrypted_date_of_birth = encrypt_str(child_f, data.date_of_birth.isoformat())
 
     child = Child.objects.create(
+        encrypted_name=encrypted_name,
+        encrypted_date_of_birth=encrypted_date_of_birth
     )
 
     ChildOrganisation.objects.create(
-        encrypted_name=encrypted_name,
-        encrypted_date_of_birth=encrypted_date_of_birth,
+        encrypted_child_key=encrypt_bytes(organisation_key_f, child_key),
         child=child,
         organisation=organisation
     )
@@ -259,17 +270,20 @@ def update_child(request, organisation_id: str, child_id: str, data: UpdateChild
     except ChildOrganisation.DoesNotExist:
         return 404, None
 
-    if data.name is not None:
-        child_org.encrypted_name = encrypt_str(organisation_key_f, data.name)
-    if data.date_of_birth is not None:
-        child_org.encrypted_date_of_birth = encrypt_str(organisation_key_f, data.date_of_birth.isoformat())
+    child = child_org.child
+    child_f = Fernet(decrypt_bytes(organisation_key_f, child_org.encrypted_child_key))
 
-    child_org.save()
+    if data.name is not None:
+        child.encrypted_name = encrypt_str(child_f, data.name)
+    if data.date_of_birth is not None:
+        child.encrypted_date_of_birth = encrypt_str(child_f, data.date_of_birth.isoformat())
+
+    child.save()
 
     return 200, ChildSchema(
-        id=child_org.child.id,
-        name=decrypt_str(organisation_key_f, child_org.encrypted_name),
-        date_of_birth=date.fromisoformat(decrypt_str(organisation_key_f, child_org.encrypted_date_of_birth))
+        id=child.id,
+        name=decrypt_str(child_f, child.encrypted_name),
+        date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
     )
 
 @api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None, 404: None})

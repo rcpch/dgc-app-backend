@@ -56,6 +56,10 @@ class UserOrganisation(models.Model):
 class Child(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # Encrypted with the child key
+    encrypted_name = models.CharField(max_length=300)
+    encrypted_date_of_birth = models.CharField(max_length=300)
+
     # TODO: in the future add plaintext linkage identifiers like NHS number
 
     def __str__(self):
@@ -64,8 +68,7 @@ class Child(models.Model):
 
 class ChildOrganisation(models.Model):
     # Encrypted with the organisation key
-    encrypted_name = models.CharField(max_length=300)
-    encrypted_date_of_birth = models.CharField(max_length=300)
+    encrypted_child_key = models.CharField(max_length=300)
 
     child = models.ForeignKey(
         to=Child,
