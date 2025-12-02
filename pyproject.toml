@@ -14,3 +14,14 @@ dependencies = [
     "pyjwt[crypto]>=2.10.1",
     "django-cors-headers>=4.9.0"
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "pytest-django>=4.11.1",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "dgc_app_backend.settings"
+python_files = ["test_*.py"]
+addopts = "--reuse-db"

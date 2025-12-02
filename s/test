@@ -1,0 +1,4 @@
+#!/bin/bash -e
+
+# *** The project's containers MUST BE RUNNING to execute tests inside it! ***
+docker compose exec django uv run pytest -v $*
