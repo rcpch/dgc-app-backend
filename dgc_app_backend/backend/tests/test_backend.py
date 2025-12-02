@@ -78,7 +78,7 @@ def test_child_in_single_org(user_fixture):
 
     assert response.status_code == 200
 
-    response = client.get(f"/organisations/{organisation_id}/children", headers={
+    response = client.get(f"/children", headers={
         "Authorization": f"Bearer {access_token}"
     })
 
@@ -89,6 +89,7 @@ def test_child_in_single_org(user_fixture):
 
     assert children[0]["name"] == "Child User"
     assert children[0]["date_of_birth"] == "2010-01-01"
+    assert children[0]["organisation_ids"] == [str(organisation_id)]
 
 
 @pytest.mark.django_db
@@ -136,7 +137,7 @@ def test_update_child(user_fixture):
 
     assert response.status_code == 200
 
-    response = client.get(f"/organisations/{organisation_id}/children", headers={
+    response = client.get(f"/children", headers={
         "Authorization": f"Bearer {access_token}"
     })
 
@@ -215,7 +216,7 @@ def test_child_in_multiple_orgs(user_fixture):
 
     assert response.status_code == 201
     
-    response = client.get(f"/organisations/{org2_id}/children", headers={
+    response = client.get(f"/children", headers={
         "Authorization": f"Bearer {access_token}"
     })
 
@@ -226,6 +227,8 @@ def test_child_in_multiple_orgs(user_fixture):
 
     assert children[0]["name"] == "Shared Child"
     assert children[0]["date_of_birth"] == "2010-01-01"
+
+    assert set(children[0]["organisation_ids"]) == {str(org1.id), str(org2.id)}
 
 # TODO MRB: add test for child in multiple orgs
 #   - updates reflected cross org
