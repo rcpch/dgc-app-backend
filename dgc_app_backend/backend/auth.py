@@ -100,7 +100,9 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
       algorithms=signing_algos,
       audience=config.allowed_client_ids,
       issuer=config.oauth_server,
-      strict_aud=True
+      options={
+        "strict_aud": True
+      }
   )
 
   return create_user(claims)
@@ -157,7 +159,9 @@ class AuthBearer(HttpBearer):
       algorithms=["HS256"],
       audience=settings.SESSION_JWT_AUDIENCE,
       issuer=settings.SESSION_JWT_ISSUER,
-      strict_aud=True
+      options={
+        "strict_aud": True
+      }
     )
 
     user_id = sha_256(claims["sub"])
