@@ -1,5 +1,6 @@
 import { useState, useRef } from "preact/hooks";
 import { Organisation } from "../api";
+import { organisationName } from "./ChildrenList";
 
 type CreateChildRowProps = {
   organisations: Organisation[];
@@ -52,7 +53,7 @@ export function CreateChildRow({ organisations, onSave }: CreateChildRowProps) {
         <select value={organisationId} onChange={onOrganisationChange}>
           {organisations.map(org => (
             <option key={org.id} value={org.id}>
-              {org.name || org.id}
+              {organisationName(org)}
             </option>
           ))}
         </select>
