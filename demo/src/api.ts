@@ -118,7 +118,15 @@ export async function getOrganisations(): Promise<Organisation[]> {
   return organisations;
 }
 
-export async function getChildren(organisation_id: string): Promise<Child[]> {
+export async function getChildren(): Promise<Child[]> {
+  const response = await authFetch(`/api/children`);
+
+  const { children } = await response.json();
+
+  return children;
+}
+
+export async function getChildrenInOrganisation(organisation_id: string): Promise<Child[]> {
   const response = await authFetch(`/api/organisations/${organisation_id}/children`);
 
   const { children } = await response.json();

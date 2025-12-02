@@ -230,6 +230,7 @@ def test_child_in_multiple_orgs(user_fixture):
 # TODO MRB: add test for child in multiple orgs
 #   - updates reflected cross org
 #   - child deleted after last org reference
+#   - doesn't leak ID of other org if the user doesn't have access to it
 # TODO MRB: permission tests
 #   - can't request children just by knowing org ID (will be removed anyway?)
 #   - can't update or delete child just by knowing IDs

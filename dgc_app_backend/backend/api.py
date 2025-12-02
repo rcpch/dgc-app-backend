@@ -10,6 +10,7 @@ from typing import Tuple
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
 from django.db import transaction
+from django.contrib.postgres.aggregates import ArrayAgg
 
 from .models import (
     Organisation,
@@ -180,14 +181,11 @@ def remove_user_from_organisation(request, organisation_id: str, user_id: str):
     return 204, None
 
 
-class ChildUserSchema(Schema):
-    name: str
-    email: str
-
 class ChildSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
+    organisation_ids: list[UUID] = []
 
 class ChildrenSchema(Schema):
     children: list[ChildSchema]
@@ -202,6 +200,49 @@ def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisatio
         date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
     )
 
+
+@api.get("/children", auth=AuthBearer(), response=ChildrenSchema)
+def children_2(request):
+    qs = Child.objects.filter(
+        childorganisation__organisation__userorganisation__user=request.auth.user
+    ).annotate(
+        organisation_ids=ArrayAgg('childorganisation__organisation_id'),
+        encrypted_organisation_keys=ArrayAgg('childorganisation__organisation__userorganisation__encrypted_organisation_key'),
+        encrypted_child_keys=ArrayAgg('childorganisation__encrypted_child_key'),
+    ).values(
+        'id',
+        'encrypted_name',
+        'encrypted_date_of_birth',
+        'organisation_ids',
+        'encrypted_organisation_keys',
+        'encrypted_child_keys',
+    )
+
+    rows = []
+
+    for row in qs:
+        encrypted_organisation_key = row['encrypted_organisation_keys'][0]
+        organisation_key = decrypt_bytes(request.auth.key, encrypted_organisation_key)
+        organisation_key_f = Fernet(organisation_key)
+
+        encrypted_child_key = row['encrypted_child_keys'][0]
+        child_key = decrypt_bytes(organisation_key_f, encrypted_child_key)
+        child_f = Fernet(child_key)
+
+        name = decrypt_str(child_f, row['encrypted_name'])
+        date_of_birth = date.fromisoformat(decrypt_str(child_f, row['encrypted_date_of_birth']))
+
+        rows.append(ChildSchema(
+            id=row['id'],
+            name=name,
+            date_of_birth=date_of_birth,
+            organisation_ids=row['organisation_ids']
+        ))
+
+    return 200, { "children": rows }
+
+
+# TODO MRB: replace with cross organisation endpoint
 @api.get("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildrenSchema, 404: None})
 def children(request, organisation_id: str):
     try:

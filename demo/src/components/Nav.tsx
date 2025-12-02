@@ -8,7 +8,7 @@ export function Nav({ appState }: { appState: AppState }) {
         <ul>
             {appState.authData.value ?
                 <>
-                    <li><a href="/demo/">Patients</a></li>
+                    <li><a href="/demo/">Children</a></li>
                     <li><a href="/demo/organisations">Organisations</a></li>
                     <li>|</li>
                     <li>{appState.authData.value.email}</li>

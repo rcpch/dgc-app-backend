@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { addChild, removeChild, getChildren, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
+import { addChild, removeChild, getChildrenInOrganisation, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
 import { CreateChildRow } from "./CreateChildRow";
 import { ChildRow } from "./ChildRow";
 
@@ -20,7 +20,7 @@ export function ChildrenList({ organisation }: { organisation: Organisation }) {
   const [children, setChildren] = useState<Child[]>([]);
 
   useEffect(() => {
-    getChildren(organisation.id).then(setChildren);
+    getChildrenInOrganisation(organisation.id).then(setChildren);
   }, [organisation.id])
 
   async function onCreateChild(name: string, date_of_birth: string) {
