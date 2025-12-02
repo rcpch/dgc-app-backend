@@ -144,7 +144,8 @@ def add_organisation(request, data: CreateOrganisationSchema):
             id=request.auth.user.id,
             name=request.auth.name,
             email=request.auth.email,
-            is_current_user=True
+            is_current_user=True,
+            is_creator=True
         )]
     )
 
