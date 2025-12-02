@@ -180,7 +180,53 @@ def test_user_in_multiple_orgs(user_fixture):
     assert str(org2_id) in org_ids
 
 
-# TODO MRB: add test for users in multiple orgs
+@pytest.mark.django_db
+def test_child_in_multiple_orgs(user_fixture):
+    access_token = generate_access_token(user_fixture.sub)
+
+    org1 = Organisation.objects.first()
+
+    response = client.post("/organisations", headers={
+        "Authorization": f"Bearer {access_token}"
+    }, json={
+        "name": "Second Organisation"
+    })
+
+    assert response.status_code == 200
+
+    org2_id = response.json()["id"]
+    org2 = Organisation.objects.get(id=org2_id)
+
+    response = client.post(f"/organisations/{org1.id}/children", headers={
+        "Authorization": f"Bearer {access_token}"
+    }, json={
+        "name": "Shared Child",
+        "date_of_birth": "2010-01-01"
+    })
+
+    assert response.status_code == 200
+
+    child_id = response.json()["id"]
+
+    # Add same child to second organisation
+    response = client.put(f"/organisations/{org2_id}/children/{child_id}", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    assert response.status_code == 201
+    
+    response = client.get(f"/organisations/{org2_id}/children", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    assert response.status_code == 200
+
+    children = response.json()["children"]
+    assert len(children) == 1
+
+    assert children[0]["name"] == "Shared Child"
+    assert children[0]["date_of_birth"] == "2010-01-01"
+
 # TODO MRB: add test for child in multiple orgs
 #   - updates reflected cross org
 #   - child deleted after last org reference
