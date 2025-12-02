@@ -2,7 +2,7 @@ import pytest
 from ninja.testing import TestClient
 from ..api import api
 from ..auth import generate_access_token, create_user
-from ..models import User, Organisation
+from ..models import User, Organisation, Child
 from ..crypto import sha_256
 
 @pytest.fixture
@@ -33,6 +33,13 @@ def test_hello(user_fixture):
 def test_sub_is_hashed(user_fixture):
     user = User.objects.first()
     assert user.id == sha_256(user_fixture.sub)
+
+
+@pytest.mark.django_db
+def test_user_pii_is_encrypted(user_fixture):
+    user = User.objects.first()
+    assert user.encrypted_name != user_fixture.name
+    assert user.encrypted_email != user_fixture.email
 
 
 @pytest.mark.django_db
@@ -82,3 +89,22 @@ def test_child_in_single_org(user_fixture):
 
     assert children[0]["name"] == "Child User"
     assert children[0]["date_of_birth"] == "2010-01-01"
+
+
+@pytest.mark.django_db
+def test_child_pii_is_encrypted(user_fixture):
+    access_token = generate_access_token(user_fixture.sub)
+
+    organisation_id = Organisation.objects.first().id
+
+    client.post(f"/organisations/{organisation_id}/children", headers={
+        "Authorization": f"Bearer {access_token}"
+    }, json={
+        "name": "Child User",
+        "date_of_birth": "2010-01-01"
+    })
+
+    child = Child.objects.first()
+
+    assert child.encrypted_name != "Child User"
+    assert child.encrypted_date_of_birth != "2010-01-01"
