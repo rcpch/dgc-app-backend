@@ -8,6 +8,7 @@ import { NotFound } from './pages/_404';
 import { Organisations } from './pages/Organisations';
 import { AppStateCtx, createAppState } from './state';
 import { Login } from './pages/Login';
+import { Measurements } from './pages/Measurements';
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
       <LocationProvider>
         <main>
           <Router>
+            <Route path="/demo/child/:child_id" component={Measurements} />
             <Route path="/demo/organisations" component={Organisations} />
             <Route path="/demo/oauth-callback" component={OAuthCallback} />
             <Route path="/demo/invite" component={Invite} />

@@ -28,6 +28,8 @@ export type ExchangeIdTokenResponse = {
   name: string;
 }
 
+export type ObservationType = 'height' | 'weight' | 'ofc';
+
 export async function exchangeIdToken(oauth_server: string, id_token: string): Promise<ExchangeIdTokenResponse> {
   const response = await fetch("/api/token", {
     method: 'POST',

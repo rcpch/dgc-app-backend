@@ -89,6 +89,9 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
             <button onClick={onStartEdit}>
               Edit
             </button>
+            <a href={`/demo/child/${childWithOrgs.id}`} role="button">
+              Measurements
+            </a>
           </>
         )}
       </td>
