@@ -136,7 +136,7 @@ def test_update_child(user_fixture):
 
     child_id = response.json()["id"]
 
-    response = client.patch(f"/organisations/{organisation_id}/children/{child_id}", headers={
+    response = client.patch(f"/children/{child_id}", headers={
         "Authorization": f"Bearer {access_token}"
     }, json={
         "name": "Updated Child User",
