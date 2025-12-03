@@ -119,8 +119,6 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
   jwks_client = jwt.PyJWKClient(oidc_doc["jwks_uri"])
   signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-  logger.info(config.allowed_client_ids)
-
   claims = jwt.decode(
       token,
       signing_key.key,
@@ -177,5 +175,4 @@ class AuthBearer(HttpBearer):
       }
     )
 
-    logger.info(f"!! sub: {claims['sub']}:{type(claims['sub'])}")
     return find_and_decrypt_user(claims["sub"])
