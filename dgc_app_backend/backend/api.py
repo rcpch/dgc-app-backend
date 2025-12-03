@@ -20,7 +20,8 @@ from .models import (
     User,
     Child,
     ChildOrganisation,
-    OrganisationInvite
+    OrganisationInvite,
+    Observation
 )
 from .crypto import (
     derive_key,
@@ -367,6 +368,36 @@ def delete_child(request, organisation_id: str, child_id: str):
             Child.objects.filter(id=child_id).delete()
     
         return 204, None
+
+
+class ObservationCreateSchema(Schema):
+    observation_date: date
+    observation_type: str # TODO MRB: proper validation
+    observation_value: float
+
+@api.post("/children/{child_id}/observations", auth=AuthBearer(), response={201: None})
+def add_observation(request, child_id: str, data: ObservationCreateSchema):
+    (child, _, _) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
+
+    # TODO MRB: call dgc API and save result
+
+    match data.observation_type:
+        case 'height':
+            observation_type = 1
+        case 'weight':
+            observation_type = 2
+        case 'ofc':
+            observation_type = 3
+        case _:
+            return 400, {"detail": "Invalid observation type"}
+
+    Observation.objects.create(
+        observation_type=observation_type,
+        observation_value=data.observation_value,
+        child=child
+    )
+
+    return 201, None
 
 
 class InviteCreateSchema(Schema):

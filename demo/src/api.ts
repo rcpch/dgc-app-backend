@@ -30,6 +30,12 @@ export type ExchangeIdTokenResponse = {
 
 export type ObservationType = 'height' | 'weight' | 'ofc';
 
+export type Observation = {
+  observation_date: string;
+  observation_type: ObservationType;
+  observation_value: number;
+}
+
 export async function exchangeIdToken(oauth_server: string, id_token: string): Promise<ExchangeIdTokenResponse> {
   const response = await fetch("/api/token", {
     method: 'POST',
@@ -170,6 +176,16 @@ export async function updateChild(child: Omit<Child, 'organisation_ids'>): Promi
   });
 
   return response.json();
+}
+
+export async function addObservation(child_id: string, observation: Observation): Promise<void> {
+  await authFetch(`/api/children/${child_id}/observations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(observation)
+  });
 }
 
 export type InviteLink = {

@@ -3,13 +3,14 @@ import { AuthData, clearAuthData, getAuthData } from "./auth";
 import { useContext } from "preact/hooks";
 import { signal, Signal } from "@preact/signals";
 import { useLocation } from "preact-iso";
-import { getOrganisations, Organisation, Child, getChildren, addChild } from "./api";
+import { getOrganisations, Organisation, Child, getChildren, addChild, Observation, addObservation } from "./api";
 
 export type AppState = {
   authData: Signal<AuthData | undefined>;
   organisations: Signal<Organisation[]>;
   children: Signal<Child[]>;
   addChild: (organisationId: string, name: string, date_of_birth: string) => Promise<void>;
+  addObservation: (childId: string, observation: Observation) => Promise<void>;
   refetchChildren: () => Promise<void>;
   logout: () => void;
 }
@@ -34,6 +35,9 @@ export function createAppState(): AppState {
       child.organisation_ids = [organisationId];
 
       children.value = [...children.value, child];
+    },
+    addObservation: async (childId: string, observation: Observation) => {
+      await addObservation(childId, observation);
     },
     refetchChildren: async () => {
       children.value = await getChildren();

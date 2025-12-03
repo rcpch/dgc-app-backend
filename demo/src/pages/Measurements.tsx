@@ -1,5 +1,5 @@
 import { Nav } from "../components/Nav";
-import { CreateObservationRow } from "../components/CreateObservationRow";
+import { CreateObservationRow } from "../components/AddObservationRow";
 import { useLoggedInAppState } from "../state";
 
 export function Measurements({ child_id }: { child_id: string }) {
@@ -27,7 +27,11 @@ export function Measurements({ child_id }: { child_id: string }) {
         <tbody>
           <CreateObservationRow
             onSave={(observationDate, observationType, observationValue) => {
-              console.log('Save observation', observationDate, observationType, observationValue);
+              appState.addObservation(child.id, {
+                observation_date: observationDate.toISOString(),
+                observation_type: observationType,
+                observation_value: observationValue
+              });
             }}
           />
         </tbody>
