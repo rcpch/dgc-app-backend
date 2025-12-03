@@ -1,14 +1,15 @@
 import pytest
 from ninja.testing import TestClient
 from ..api import api
-from ..auth import generate_access_token, create_user
-from ..models import User, Organisation, Child, UserOrganisation
+from ..auth import generate_access_token, get_or_create_user
+from ..models import User, Organisation, Child, UserOrganisation, UserRegistration
 from ..crypto import sha_256
 from ..organisations import create_organisation
 
 @pytest.fixture
 def user_fixture():
-    auth_data = create_user({
+    auth_data = get_or_create_user({
+        "iss": "test_issuer",
         "sub": "test_sub",
         "name": "Test User",
         "email": "test@example.com"
@@ -36,8 +37,16 @@ def test_hello(user_fixture):
 
 @pytest.mark.django_db
 def test_sub_is_hashed(user_fixture):
+    assert User.objects.count() == 1
+    assert UserRegistration.objects.count() == 1
+
     user = User.objects.first()
-    assert user.id == sha_256(user_fixture.sub)
+    user_registration = UserRegistration.objects.first()
+
+    assert user.id != user_fixture.sub
+    assert user.id != sha_256(user_fixture.sub)
+
+    assert user_registration.hashed_sub == sha_256(user_fixture.sub)
 
 
 @pytest.mark.django_db
@@ -66,7 +75,7 @@ def test_initial_organisation_list(user_fixture):
     users = orgs[0]["users"]
     assert len(users) == 1
 
-    assert users[0]["id"] == sha_256(user_fixture.sub)
+    assert users[0]["id"] == str(user_fixture.user.id)
     assert users[0]["is_current_user"] is True
     assert users[0]["is_creator"] is True
 

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from django.conf import settings
 from ninja.security import HttpBearer
 
-from .models import User, UserOrganisation
+from .models import User, UserOrganisation, UserRegistration
 from .crypto import sha_256, derive_key, salt, decrypt_str
 
 
@@ -45,26 +45,29 @@ def fetch_config(oauthServer: str) -> dict:
       raise ValueError(f"Unknown OAuth server: {oauthServer}")
 
 
-def create_user(claims) -> AuthData:
-  # Extremely important! Don't store the actual user ID in the database as we treat it as a secret
+def get_or_create_user(claims) -> AuthData:
+  # Extremely important! Don't store the actual syub in the database as we treat it as a secret
   # to derive the per user encryption key
-  user_id = sha_256(claims["sub"])
+  hashed_sub = sha_256(claims["sub"])
 
-  key_salt = salt()
-  iterations = 100000
+  user_registration = UserRegistration.objects.filter(
+    oauth_iss=claims["iss"],
+    hashed_sub=hashed_sub
+  ).select_related("user").first()
 
-  key = derive_key(claims["sub"], key_salt, iterations=iterations)
-
-  (user, _) = User.objects.get_or_create(
-      id=user_id,
-      defaults={
-        "salt": key_salt,
-        "iterations": iterations
-      }
-  )
-
-  # User might have already existed, update key
-  key = derive_key(claims["sub"], user.salt, user.iterations)
+  if user_registration:
+    user = user_registration.user
+  else:
+    user = User.objects.create()
+    user_registration = UserRegistration.objects.create(
+      oauth_iss=claims["iss"],
+      hashed_sub=hashed_sub,
+      salt=salt(),
+      iterations=100000,
+      user=user
+    )
+  
+  key = derive_key(claims["sub"], user_registration.salt, user_registration.iterations)
   
   # TODO MRB: update name and email if they've changed?
 
@@ -78,15 +81,19 @@ def create_user(claims) -> AuthData:
 
 
 def find_and_decrypt_user(sub: str) -> AuthData:
-  user_id = sha_256(sub)
+  hashed_sub = sha_256(sub)
+
+  user_registration = UserRegistration.objects.filter(
+    hashed_sub=hashed_sub
+  ).select_related("user").first()
 
   user_organisation = UserOrganisation.objects.filter(
-    user__id=user_id
+    user__id=user_registration.user.id
   ).select_related("user").first()
 
   user = user_organisation.user
 
-  user_key_f = derive_key(sub, user.salt, user.iterations)
+  user_key_f = derive_key(sub, user_registration.salt, user_registration.iterations)
   _, organisation_key_f = user_organisation.decrypt_organisation_key(user_key_f)
 
   name = decrypt_str(organisation_key_f, user_organisation.encrypted_user_name)
@@ -112,8 +119,6 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
   jwks_client = jwt.PyJWKClient(oidc_doc["jwks_uri"])
   signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-  logger.info(config.allowed_client_ids)
-
   claims = jwt.decode(
       token,
       signing_key.key,
@@ -122,7 +127,7 @@ def login_with_third_party_id_token(oauth_server: str, token: str) -> AuthData:
       issuer=config.oauth_server
   )
 
-  return create_user(claims)
+  return get_or_create_user(claims)
 
 
 def login_with_third_party_access_token(oauth_server: str, token: str) -> AuthData:
@@ -140,6 +145,7 @@ def login_with_third_party_access_token(oauth_server: str, token: str) -> AuthDa
   ret = response.json()
   
   sub = ret["sub"]
+
   return find_and_decrypt_user(sub)
 
 
