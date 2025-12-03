@@ -178,7 +178,7 @@ def add_organisation(request, data: CreateOrganisationSchema):
         id=organisation.id,
         name=data.name if data.name else request.auth.name,
         users=[OrganisationUserSchema(
-            id=request.auth.user.id,
+            id=str(request.auth.user.id),
             name=request.auth.name,
             email=request.auth.email,
             is_current_user=True,
