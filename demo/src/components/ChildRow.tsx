@@ -9,7 +9,7 @@ export type ChildWithOrganisations = Child & {
 type ChildRowProps = {
   childWithOrgs: ChildWithOrganisations;
   onSave: (name: string, date_of_birth: string) => void;
-  onRemove: () => void;
+  onRemove: (organisation_id: string) => void;
 }
 
 export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
@@ -66,7 +66,12 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
       </td>
       <td>
         {childWithOrgs.organisations.map(org => (
-          <span key={org.id}>{organisationName(org)}</span>
+          <span key={org.id}>
+            {organisationName(org)}
+            <button class="pico-background-red" onClick={() => onRemove(org.id)}>
+              X
+            </button>
+          </span>
         ))}
       </td>
       <td style={{ display: 'flex', gap: '0.5em', justifyContent: 'flex-end' }}>
@@ -83,11 +88,6 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
           <>
             <button onClick={onStartEdit}>
               Edit
-            </button>
-            <button
-              class="pico-background-red"
-              onClick={onRemove}>
-              Delete Child Data
             </button>
           </>
         )}

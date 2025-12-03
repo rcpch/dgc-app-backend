@@ -10,7 +10,7 @@ export type AppState = {
   organisations: Signal<Organisation[]>;
   children: Signal<Child[]>;
   addChild: (organisationId: string, name: string, date_of_birth: string) => Promise<void>;
-  updateChildById: (id: string, child: Child) => void;
+  refetchChildren: () => Promise<void>;
   logout: () => void;
 }
 
@@ -35,13 +35,8 @@ export function createAppState(): AppState {
 
       children.value = [...children.value, child];
     },
-    updateChildById: (id: string, child: Child) => {
-      const before = children.value.find(c => c.id === id);
-      const after = {...before, ...child };
-
-      children.value = children.value.map(c =>
-        c.id === id ? after : c
-      );
+    refetchChildren: async () => {
+      children.value = await getChildren();
     },
     logout: () => {
       authData.value = undefined;

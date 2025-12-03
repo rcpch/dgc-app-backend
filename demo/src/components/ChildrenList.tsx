@@ -33,13 +33,13 @@ export function ChildrenList() {
       date_of_birth,
     });
 
-    appState.updateChildById(id, child);
+    await appState.refetchChildren();
   }
 
-  // async function onRemoveChild(id: string) {
-  //   await removeChild(organisation.id, id);
-  //   setChildren(children.filter(c => c.id !== id));
-  // }
+  async function onRemoveChild(organisation_id: string, child_id: string) {
+    await removeChild(organisation_id, child_id);
+    await appState.refetchChildren();
+  }
 
   const childrenWithOrgs: ChildWithOrganisations[] = children.map(child => {
     const organisationsForChild = organisations.filter(org =>
@@ -69,8 +69,8 @@ export function ChildrenList() {
           onSave={(name, date_of_birth) => {
             onSaveEdit(childWithOrgs.id, name, date_of_birth);
           }}
-          onRemove={() => {
-            onRemoveChild(childWithOrgs.id);
+          onRemove={(organisation_id) => {
+            onRemoveChild(organisation_id, childWithOrgs.id);
           }}
         />
       ))}
