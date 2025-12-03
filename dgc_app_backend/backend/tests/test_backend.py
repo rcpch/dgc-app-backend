@@ -2,16 +2,21 @@ import pytest
 from ninja.testing import TestClient
 from ..api import api
 from ..auth import generate_access_token, create_user
-from ..models import User, Organisation, Child
+from ..models import User, Organisation, Child, UserOrganisation
 from ..crypto import sha_256
+from ..organisations import create_organisation
 
 @pytest.fixture
 def user_fixture():
-    return create_user({
+    auth_data = create_user({
         "sub": "test_sub",
         "name": "Test User",
         "email": "test@example.com"
     })
+
+    create_organisation(auth_data, organisation_name=None)
+
+    return auth_data
 
 
 client = TestClient(api)
@@ -37,9 +42,12 @@ def test_sub_is_hashed(user_fixture):
 
 @pytest.mark.django_db
 def test_user_pii_is_encrypted(user_fixture):
-    user = User.objects.first()
-    assert user.encrypted_name != user_fixture.name
-    assert user.encrypted_email != user_fixture.email
+    assert User.objects.count() == 1
+    assert UserOrganisation.objects.count() == 1
+
+    user_org = UserOrganisation.objects.first()
+    assert user_org.encrypted_user_name != user_fixture.name
+    assert user_org.encrypted_user_email != user_fixture.email
 
 
 @pytest.mark.django_db
