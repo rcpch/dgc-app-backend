@@ -155,11 +155,11 @@ export async function removeChild(organisation_id: string, id: string): Promise<
   });
 }
 
-export async function updateChild(organisation_id: string, child: Child): Promise<Child> {
+export async function updateChild(child: Omit<Child, 'organisation_ids'>): Promise<Child> {
   const body = { ...child };
   delete body.id;
 
-  const response = await authFetch(`/api/organisations/${organisation_id}/children/${child.id}`, {
+  const response = await authFetch(`/api/children/${child.id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json'

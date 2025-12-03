@@ -26,19 +26,15 @@ export function ChildrenList() {
     appState.addChild(organisationId, name, date_of_birth);
   }
 
-  // async function onSaveEdit(id: string, name: string, date_of_birth: string) {
-  //   const child = await updateChild(organisation.id, {
-  //     id,
-  //     name,
-  //     date_of_birth,
-  //   });
+  async function onSaveEdit(id: string, name: string, date_of_birth: string) {
+    const child = await updateChild({
+      id,
+      name,
+      date_of_birth,
+    });
 
-  //   setChildren(children =>
-  //     children.map(c =>
-  //       c.id === id ? child : c
-  //     )
-  //   );
-  // }
+    appState.updateChildById(id, child);
+  }
 
   // async function onRemoveChild(id: string) {
   //   await removeChild(organisation.id, id);
@@ -71,10 +67,10 @@ export function ChildrenList() {
           key={childWithOrgs.id}
           childWithOrgs={childWithOrgs}
           onSave={(name, date_of_birth) => {
-            onSaveEdit(child.id, name, date_of_birth);
+            onSaveEdit(childWithOrgs.id, name, date_of_birth);
           }}
           onRemove={() => {
-            onRemoveChild(child.id);
+            onRemoveChild(childWithOrgs.id);
           }}
         />
       ))}

@@ -20,8 +20,8 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
 
   function onStartEdit() {
     setEditing(true);
-    setEditingName(child.name);
-    setEditingDateOfBirth(child.date_of_birth);
+    setEditingName(childWithOrgs.name);
+    setEditingDateOfBirth(childWithOrgs.date_of_birth);
   }
 
   function onCancelEdit() {

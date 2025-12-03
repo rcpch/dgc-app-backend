@@ -5,17 +5,19 @@ import jwt
 
 from datetime import date
 from uuid import UUID
-from typing import Tuple
+from typing import Tuple, List
 
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
 from django.db import transaction
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 
 from .models import (
     Organisation,
     UserOrganisation,
+    User,
     Child,
     ChildOrganisation,
     OrganisationInvite
@@ -92,6 +94,23 @@ def get_organisation_or_404(auth: AuthData, organisation_id: str) -> Tuple[Organ
     (organisation_key, organisation_key_f) = registration.decrypt_organisation_key(auth.key)
 
     return (registration.organisation, organisation_key, organisation_key_f)
+
+def get_child_and_organisation_or_404(request, user: User, child_id: str) -> Tuple[Child, bytes, Fernet]:
+    # User might have the same child via multiple organisations so we can't use get_object_or_404
+    child_with_org = ChildOrganisation.objects.filter(
+        child__id=child_id,
+        organisation__userorganisation__user=user
+    ).select_related("child", "organisation").first()
+
+    if not child_with_org:
+        raise Http404("Child not found or user does not have access")
+
+    (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, child_with_org.organisation.id)
+
+    child_key = decrypt_bytes(organisation_key_f, child_with_org.encrypted_child_key)
+    child_key_f = Fernet(child_key)
+
+    return (child_with_org.child, child_key, child_key_f)
 
 
 class OrganisationUserSchema(Schema):
@@ -183,10 +202,12 @@ class ChildSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
-    organisation_ids: list[UUID] = []
 
-class ChildrenSchema(Schema):
-    children: list[ChildSchema]
+class ChildWithOrganisationsSchema(ChildSchema):
+    organisation_ids: list[UUID]
+
+class ChildrenWithOrganisationsSchema(Schema):
+    children: list[ChildWithOrganisationsSchema]
 
 def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisation) -> ChildSchema:
     child = child_org.child
@@ -199,7 +220,7 @@ def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisatio
     )
 
 
-@api.get("/children", auth=AuthBearer(), response=ChildrenSchema)
+@api.get("/children", auth=AuthBearer(), response=ChildrenWithOrganisationsSchema)
 def children(request):
     qs = Child.objects.filter(
         childorganisation__organisation__userorganisation__user=request.auth.user
@@ -230,7 +251,7 @@ def children(request):
         name = decrypt_str(child_f, row['encrypted_name'])
         date_of_birth = date.fromisoformat(decrypt_str(child_f, row['encrypted_date_of_birth']))
 
-        rows.append(ChildSchema(
+        rows.append(ChildWithOrganisationsSchema(
             id=row['id'],
             name=name,
             date_of_birth=date_of_birth,
@@ -268,8 +289,7 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
     return 200, ChildSchema(
         id=child.id,
         name=data.name,
-        date_of_birth=data.date_of_birth,
-        organisation_ids=[organisation.id]
+        date_of_birth=data.date_of_birth
     )
 
 
@@ -309,17 +329,9 @@ class UpdateChildSchema(Schema):
     name: str | None = None
     date_of_birth: date | None = None
 
-@api.patch("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema})
-def update_child(request, organisation_id: str, child_id: str, data: UpdateChildSchema):
-    (organisation, _, organisation_key_f) = get_organisation_or_404(request.auth, organisation_id)
-
-    child_org = get_object_or_404(ChildOrganisation,
-        child__pk=child_id,
-        organisation=organisation
-    )
-
-    child = child_org.child
-    child_f = Fernet(decrypt_bytes(organisation_key_f, child_org.encrypted_child_key))
+@api.patch("/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema})
+def update_child(request, child_id: str, data: UpdateChildSchema):
+    (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
 
     if data.name is not None:
         child.encrypted_name = encrypt_str(child_f, data.name)
