@@ -9,8 +9,7 @@ from django.conf import settings
 from ninja.security import HttpBearer
 
 from .models import User, UserOrganisation
-from .crypto import sha_256, derive_key, salt, encrypt_str, decrypt_str
-from .organisations import create_organisation
+from .crypto import sha_256, derive_key, salt, decrypt_str
 
 
 logger = logging.getLogger(__name__)
@@ -60,9 +59,7 @@ def create_user(claims) -> AuthData:
       id=user_id,
       defaults={
         "salt": key_salt,
-        "iterations": iterations,
-        "encrypted_name": encrypt_str(key, claims["name"]),
-        "encrypted_email": encrypt_str(key, claims["email"]), 
+        "iterations": iterations
       }
   )
 
@@ -71,15 +68,36 @@ def create_user(claims) -> AuthData:
   
   # TODO MRB: update name and email if they've changed?
 
-  if not UserOrganisation.objects.filter(user=user).exists():
-    create_organisation(user, key, organisation_name=None)
-
   return AuthData(
     sub=claims["sub"],
     user=user,
     name=claims["name"],
     email=claims["email"],
     key=key
+  )
+
+
+def find_and_decrypt_user(sub: str) -> AuthData:
+  user_id = sha_256(sub)
+
+  user_organisation = UserOrganisation.objects.filter(
+    user__id=user_id
+  ).select_related("user").first()
+
+  user = user_organisation.user
+
+  user_key_f = derive_key(sub, user.salt, user.iterations)
+  _, organisation_key_f = user_organisation.decrypt_organisation_key(user_key_f)
+
+  name = decrypt_str(organisation_key_f, user_organisation.encrypted_user_name)
+  email = decrypt_str(organisation_key_f, user_organisation.encrypted_user_email)
+
+  return AuthData(
+    sub=sub,
+    user=user,
+    name=name,
+    email=email,
+    key=user_key_f
   )
 
 
@@ -122,22 +140,9 @@ def login_with_third_party_access_token(oauth_server: str, token: str) -> AuthDa
   ret = response.json()
   
   sub = ret["sub"]
-  user_id = sha_256(sub)
+  return find_and_decrypt_user(sub)
 
-  user = User.objects.get(id=user_id)
 
-  key = derive_key(sub, user.salt, user.iterations)
-
-  name = decrypt_str(key, user.encrypted_name)
-  email = decrypt_str(key, user.encrypted_email)
-
-  return AuthData(
-    sub=sub,
-    user=user,
-    name=name,
-    email=email,
-    key=key
-  )
 
 def generate_access_token(sub: str) -> str:
   return jwt.encode({
@@ -146,6 +151,7 @@ def generate_access_token(sub: str) -> str:
     "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=settings.SESSION_JWT_EXPIRY_SECONDS),
     "sub": sub
   }, settings.SECRET_KEY, algorithm="HS256")
+
 
 class AuthBearer(HttpBearer):
   def authenticate(self, request, token: str | None) -> AuthData | None:
@@ -163,19 +169,4 @@ class AuthBearer(HttpBearer):
       }
     )
 
-    user_id = sha_256(claims["sub"])
-
-    user = User.objects.get(id=user_id)
-
-    key = derive_key(claims["sub"], user.salt, user.iterations)
-
-    name = decrypt_str(key, user.encrypted_name)
-    email = decrypt_str(key, user.encrypted_email)
-
-    return AuthData(
-      sub=claims["sub"],
-      user=user,
-      name=name,
-      email=email,
-      key=key
-    )
+    return find_and_decrypt_user(claims["sub"])

@@ -11,9 +11,6 @@ class User(models.Model):
 
     salt = models.CharField(max_length=150)
     iterations = models.IntegerField()
-    
-    encrypted_name = models.CharField(max_length=300)
-    encrypted_email = models.CharField(max_length=300)
 
     def __str__(self):
         return self.id

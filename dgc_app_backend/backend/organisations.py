@@ -2,6 +2,7 @@ from cryptography.fernet import Fernet
 from django.shortcuts import get_object_or_404
 
 from .models import Organisation, UserOrganisation, User
+from .auth import AuthData
 from .crypto import (
     derive_key,
     decrypt_str,
@@ -9,7 +10,7 @@ from .crypto import (
     encrypt_str,
 )
 
-def create_organisation(user: User, user_key: bytes, organisation_name: str | None) -> Organisation:
+def create_organisation(auth_data: AuthData, organisation_name: str | None) -> Organisation:
     organisation_key = Fernet.generate_key()
     organisation_f = Fernet(organisation_key)
 
@@ -18,16 +19,13 @@ def create_organisation(user: User, user_key: bytes, organisation_name: str | No
         encrypted_name=encrypted_name
     )
 
-    encrypted_organisation_key = encrypt_bytes(user_key, organisation_key)
-
-    username = decrypt_str(user_key, user.encrypted_name)
-    email = decrypt_str(user_key, user.encrypted_email)
+    encrypted_organisation_key = encrypt_bytes(auth_data.key, organisation_key)
 
     # TODO MRB: what should we do if these change the next time a user logs in?
-    encrypted_user_name = encrypt_str(organisation_f, username)
-    encrypted_user_email = encrypt_str(organisation_f, email)
+    encrypted_user_name = encrypt_str(organisation_f, auth_data.name)
+    encrypted_user_email = encrypt_str(organisation_f, auth_data.email)
     UserOrganisation.objects.create(
-        user=user,
+        user=auth_data.user,
         organisation=organisation,
         encrypted_organisation_key=encrypted_organisation_key,
         encrypted_user_name=encrypted_user_name,

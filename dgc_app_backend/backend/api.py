@@ -70,6 +70,8 @@ def token(request, data: TokenRequestSchema):
         auth_data = login_with_third_party_access_token(data.oauth_server, data.access_token)
     elif data.id_token:
         auth_data = login_with_third_party_id_token(data.oauth_server, data.id_token)
+        if not UserOrganisation.objects.filter(user=auth_data.user).exists():
+            create_organisation(auth_data, organisation_name=None)
     else:
         return 400, {"detail": "Either id_token or access_token must be provided."}
 
@@ -169,7 +171,7 @@ class CreateOrganisationSchema(Schema):
 
 @api.post("/organisations", auth=AuthBearer(), response=OrganisationSchema)
 def add_organisation(request, data: CreateOrganisationSchema):
-    organisation = create_organisation(request.auth.user, request.auth.key, data.name)
+    organisation = create_organisation(request.auth, data.name)
 
     return OrganisationSchema(
         id=organisation.id,
