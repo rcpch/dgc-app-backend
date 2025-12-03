@@ -8,7 +8,7 @@ from ..organisations import create_organisation
 
 @pytest.fixture
 def user_fixture():
-    auth_data = create_user({
+    auth_data = get_or_create_user({
         "sub": "test_sub",
         "name": "Test User",
         "email": "test@example.com"

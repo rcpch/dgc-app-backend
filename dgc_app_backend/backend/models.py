@@ -6,14 +6,32 @@ from cryptography.fernet import Fernet
 from .crypto import decrypt_bytes
 
 class User(models.Model):
-    # SHA-256 hash of the "sub" claim from the OIDC token
-    id = models.CharField(max_length=150, primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    salt = models.CharField(max_length=150)
-    iterations = models.IntegerField()
+    # Placeholder to allow for normalised users in the future
+    # e.g. a user who logs in with Google and later on uses NHS login
 
     def __str__(self):
         return self.id
+
+
+class UserRegistration(models.Model):
+    oauth_iss = models.CharField(max_length=300)
+
+    # SHA-256 hash of the "sub" claim from the OIDC token
+    hashed_sub = models.CharField(max_length=150, primary_key=True)
+
+    # Used to derive the user key from the plaintext "sub" claim
+    salt = models.CharField(max_length=150)
+    iterations = models.IntegerField()
+
+    user = models.ForeignKey(
+        to=User,
+        on_delete=models.CASCADE
+    )
+
+    class Meta:
+        unique_together = ('oauth_iss', 'hashed_sub')
 
 
 class Organisation(models.Model):

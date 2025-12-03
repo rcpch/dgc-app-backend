@@ -70,6 +70,7 @@ def token(request, data: TokenRequestSchema):
         auth_data = login_with_third_party_access_token(data.oauth_server, data.access_token)
     elif data.id_token:
         auth_data = login_with_third_party_id_token(data.oauth_server, data.id_token)
+
         if not UserOrganisation.objects.filter(user=auth_data.user).exists():
             create_organisation(auth_data, organisation_name=None)
     else:
@@ -150,7 +151,7 @@ def organisations(request):
             username = decrypt_str(organisation_key_f, reg.encrypted_user_name)
 
             users.append(OrganisationUserSchema(
-                id=reg.user.id,
+                id=str(reg.user.id),
                 name=username,
                 email=decrypt_str(organisation_key_f, reg.encrypted_user_email),
                 is_current_user=(reg.user == request.auth.user),
