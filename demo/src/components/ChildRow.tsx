@@ -90,7 +90,7 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
               Edit
             </button>
             <a href={`/demo/child/${childWithOrgs.id}`} role="button">
-              Measurements
+              Observations
             </a>
           </>
         )}

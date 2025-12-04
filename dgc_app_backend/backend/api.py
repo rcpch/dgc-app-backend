@@ -10,6 +10,7 @@ from typing import Tuple, List
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
 from django.db import transaction
+from django.db.models import Q
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.shortcuts import get_object_or_404
 from django.http import Http404
@@ -207,11 +208,17 @@ class ChildSchema(Schema):
     name: str
     date_of_birth: date
 
-class ChildWithOrganisationsSchema(ChildSchema):
-    organisation_ids: list[UUID]
+class ObservationSchema(Schema):
+    observation_date: date
+    observation_type: str # TODO MRB: proper validation
+    observation_value: float
 
-class ChildrenWithOrganisationsSchema(Schema):
-    children: list[ChildWithOrganisationsSchema]
+class ExpandedChild(ChildSchema):
+    organisation_ids: list[UUID]
+    observations: list[ObservationSchema]
+
+class ExpandedChildren(Schema):
+    children: list[ExpandedChild]
 
 def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisation) -> ChildSchema:
     child = child_org.child
@@ -223,8 +230,7 @@ def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisatio
         date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
     )
 
-
-@api.get("/children", auth=AuthBearer(), response=ChildrenWithOrganisationsSchema)
+@api.get("/children", auth=AuthBearer(), response=ExpandedChildren)
 def children(request):
     qs = Child.objects.filter(
         childorganisation__organisation__userorganisation__user=request.auth.user
@@ -232,6 +238,18 @@ def children(request):
         organisation_ids=ArrayAgg('childorganisation__organisation_id'),
         encrypted_organisation_keys=ArrayAgg('childorganisation__organisation__userorganisation__encrypted_organisation_key'),
         encrypted_child_keys=ArrayAgg('childorganisation__encrypted_child_key'),
+        observations_dgc_api_results=ArrayAgg(
+            'observation__encrypted_dgc_api_result',
+            filter=Q(observation__encrypted_dgc_api_result__isnull=False)
+        ),
+        observations_types=ArrayAgg(
+            'observation__observation_type',
+            filter=Q(observation__observation_type__isnull=False)
+        ),
+        observations_values=ArrayAgg(
+            'observation__observation_value',
+            filter=Q(observation__observation_value__isnull=False)
+        )
     ).values(
         'id',
         'encrypted_name',
@@ -239,6 +257,9 @@ def children(request):
         'organisation_ids',
         'encrypted_organisation_keys',
         'encrypted_child_keys',
+        'observations_dgc_api_results',
+        'observations_types',
+        'observations_values'
     )
 
     rows = []
@@ -255,14 +276,29 @@ def children(request):
         name = decrypt_str(child_f, row['encrypted_name'])
         date_of_birth = date.fromisoformat(decrypt_str(child_f, row['encrypted_date_of_birth']))
 
-        rows.append(ChildWithOrganisationsSchema(
+        observations: list[ObservationSchema] = []
+        for (enc_result, obs_type, obs_value) in zip(
+            row['observations_dgc_api_results'] or [],
+            row['observations_types'] or [],
+            row['observations_values'] or []
+        ):
+            logger.info(f"Decoding observation for child {row['id']}: type={obs_type}, value={obs_value}")
+
+            observations.append(ObservationSchema(
+                observation_date=date.today(),  # TODO MRB: store real date
+                observation_type={1: 'height', 2: 'weight', 3: 'ofc'}.get(obs_type, 'unknown'),
+                observation_value=obs_value
+            ))
+
+        rows.append(ExpandedChild(
             id=row['id'],
             name=name,
             date_of_birth=date_of_birth,
-            organisation_ids=row['organisation_ids']
+            organisation_ids=row['organisation_ids'],
+            observations=observations
         ))
 
-    return 200, { "children": rows }
+    return 200, ExpandedChildren(children=rows)
 
 
 class NewChildSchema(Schema):
@@ -370,13 +406,8 @@ def delete_child(request, organisation_id: str, child_id: str):
         return 204, None
 
 
-class ObservationCreateSchema(Schema):
-    observation_date: date
-    observation_type: str # TODO MRB: proper validation
-    observation_value: float
-
 @api.post("/children/{child_id}/observations", auth=AuthBearer(), response={201: None})
-def add_observation(request, child_id: str, data: ObservationCreateSchema):
+def add_observation(request, child_id: str, data: ObservationSchema):
     (child, _, _) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
 
     # TODO MRB: call dgc API and save result

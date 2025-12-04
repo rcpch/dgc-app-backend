@@ -2,7 +2,7 @@ import { Nav } from "../components/Nav";
 import { CreateObservationRow } from "../components/AddObservationRow";
 import { useLoggedInAppState } from "../state";
 
-export function Measurements({ child_id }: { child_id: string }) {
+export function Observations({ child_id }: { child_id: string }) {
   const appState = useLoggedInAppState();
 
   const child = appState.children.value.find(c => c.id === child_id);
