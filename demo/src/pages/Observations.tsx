@@ -25,13 +25,22 @@ export function Observations({ child_id }: { child_id: string }) {
           </tr>
         </thead>
         <tbody>
+          {child.observations.map(observation => (
+            <tr>
+              <td>{new Date(observation.observation_date).toLocaleDateString()}</td>
+              <td>{observation.observation_type}</td>
+              <td>{observation.observation_value}</td>
+            </tr>
+          ))}
           <CreateObservationRow
-            onSave={(observationDate, observationType, observationValue) => {
-              appState.addObservation(child.id, {
+            onSave={async (observationDate, observationType, observationValue) => {
+              await appState.addObservation(child.id, {
                 observation_date: observationDate.toISOString(),
                 observation_type: observationType,
                 observation_value: observationValue
               });
+
+              await appState.refetchChildren();
             }}
           />
         </tbody>

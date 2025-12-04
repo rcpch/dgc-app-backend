@@ -19,8 +19,12 @@ export type Child = {
   id: string;
   name: string;
   date_of_birth: string;
-  organisation_ids: string[];
 };
+
+export type ExpandedChild = Child & {
+  organisation_ids: string[];
+  observations: Observation[];
+}
 
 export type ExchangeIdTokenResponse = {
   access_token: string;
@@ -127,16 +131,8 @@ export async function getOrganisations(): Promise<Organisation[]> {
   return organisations;
 }
 
-export async function getChildren(): Promise<Child[]> {
+export async function getChildren(): Promise<ExpandedChild[]> {
   const response = await authFetch(`/api/children`);
-
-  const { children } = await response.json();
-
-  return children;
-}
-
-export async function getChildrenInOrganisation(organisation_id: string): Promise<Child[]> {
-  const response = await authFetch(`/api/organisations/${organisation_id}/children`);
 
   const { children } = await response.json();
 
@@ -163,7 +159,7 @@ export async function removeChild(organisation_id: string, id: string): Promise<
   });
 }
 
-export async function updateChild(child: Omit<Child, 'organisation_ids'>): Promise<Child> {
+export async function updateChild(child: Child): Promise<Child> {
   const body = { ...child };
   delete body.id;
 
