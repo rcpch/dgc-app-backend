@@ -75,6 +75,20 @@ class Child(models.Model):
     encrypted_name = models.CharField(max_length=300)
     encrypted_date_of_birth = models.CharField(max_length=300)
 
+    # Plaintext - for analysis
+    sex = models.PositiveSmallIntegerField(
+        choices=[
+            (0, 'male'),
+            (1, 'female'),
+        ]
+    )
+
+    # Only set if known, otherwise term is assumed when calling the API
+    gestation_days = models.PositiveIntegerField(blank=True, null=True)
+
+    # Plaintext - for analysis
+    days_since_birth = models.PositiveIntegerField()
+
     # TODO: in the future add plaintext linkage identifiers like NHS number
 
     def __str__(self):
