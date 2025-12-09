@@ -1,5 +1,7 @@
 import pytest
+from datetime import date
 from ninja.testing import TestClient
+
 from ..api import api
 from ..auth import generate_access_token, get_or_create_user
 from ..models import User, Organisation, Child, UserOrganisation, UserRegistration
@@ -90,7 +92,8 @@ def test_child_in_single_org(user_fixture):
         "Authorization": f"Bearer {access_token}"
     }, json={
         "name": "Child User",
-        "date_of_birth": "2010-01-01"
+        "date_of_birth": "2010-01-01",
+        "sex": "female"
     })
 
     assert response.status_code == 200
@@ -106,6 +109,7 @@ def test_child_in_single_org(user_fixture):
 
     assert children[0]["name"] == "Child User"
     assert children[0]["date_of_birth"] == "2010-01-01"
+    assert children[0]["sex"] == "female"
     assert children[0]["organisation_ids"] == [str(organisation_id)]
 
 
@@ -119,13 +123,17 @@ def test_child_pii_is_encrypted(user_fixture):
         "Authorization": f"Bearer {access_token}"
     }, json={
         "name": "Child User",
-        "date_of_birth": "2010-01-01"
+        "date_of_birth": "2010-01-01",
+        "sex": "female"
     })
 
     child = Child.objects.first()
 
     assert child.encrypted_name != "Child User"
     assert child.encrypted_date_of_birth != "2010-01-01"
+
+    assert child.sex == 1
+    assert child.days_since_birth == (date.today() - date.fromisoformat("2010-01-01")).days
 
 
 @pytest.mark.django_db
@@ -138,7 +146,8 @@ def test_update_child(user_fixture):
         "Authorization": f"Bearer {access_token}"
     }, json={
         "name": "Child User",
-        "date_of_birth": "2010-01-01"
+        "date_of_birth": "2010-01-01",
+        "sex": "female"
     })
 
     assert response.status_code == 200
@@ -150,6 +159,7 @@ def test_update_child(user_fixture):
     }, json={
         "name": "Updated Child User",
         "date_of_birth": "2011-02-02"
+        # check not all fields need to be provided
     })
 
     assert response.status_code == 200
@@ -165,6 +175,7 @@ def test_update_child(user_fixture):
 
     assert children[0]["name"] == "Updated Child User"
     assert children[0]["date_of_birth"] == "2011-02-02"
+    assert children[0]["sex"] == "female"
 
 
 @pytest.mark.django_db
@@ -219,7 +230,8 @@ def test_child_in_multiple_orgs(user_fixture):
         "Authorization": f"Bearer {access_token}"
     }, json={
         "name": "Shared Child",
-        "date_of_birth": "2010-01-01"
+        "date_of_birth": "2010-01-01",
+        "sex": "female"
     })
 
     assert response.status_code == 200

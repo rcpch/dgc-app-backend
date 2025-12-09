@@ -63,6 +63,7 @@ Users are invited to join an organisation using a link with the following data
 Each invite in the database stores the organisation key encrypted with an ephemeral key derived from the share password.
 Joining an org involves decrypting the key, checking it works and then writing a new `UserOrganisation` linking model.
 
+<<<<<<< HEAD
 | Model              | Field                      | Encryption Key | Notes                                                                                                                                            |
 |--------------------|----------------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | User               | id                         |                | Generic secure random UUID stored plaintext. Placeholder for when users can log in with multiple methods (for example adding NHS login)          |
@@ -77,6 +78,9 @@ Joining an org involves decrypting the key, checking it works and then writing a
 | Child              | id                         | -              | Generic secure random UUID, stored plaintext.                                                                                                    |
 | Child              | encrypted_name             | Child          | Displayed in the UI so the user can select from multiple children they can see                                                                   |
 | Child              | encrypted_date_of_birth    | Child          | Required to call the dGC API                                                                                                                     |
+| Child              | sex                        | -              | Stored in plaintext so it can be used for analysis                                                                                                                                                                       |
+| Child              | gestation_days             | -              | Unlike the API that has weeks and days as separate parameters we just store cumulative days. Only set if known otherwise term is assumed when calling the API. Again stored in plaintext so it can be used for analysis. |
+| Child              | days_since_birth           | -              | Not an identifier (unlike date of birth). As above, stored in plaintext for analysis.                                                                                                                                    |
 | ChildOrganisation  | encrypted_child_key        | Organisation   |                                                                                                                                                  |
 | Observation        | encrypted_dgc_api_result   | Child          | Contains date of birth so must be encrypted. Also contains observation date                                                                      |
 | Observation        | observation_type           | -              | `height \| weight \| ofc`                                                                                                                        |

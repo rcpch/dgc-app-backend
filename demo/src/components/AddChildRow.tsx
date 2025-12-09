@@ -1,15 +1,17 @@
 import { useState, useRef } from "preact/hooks";
-import { Organisation } from "../api";
+import { Child, Organisation, Sex } from "../api";
 import { organisationName } from "./ChildrenList";
 
 type CreateChildRowProps = {
   organisations: Organisation[];
-  onSave: (organisationId: string, name: string, date_of_birth: string) => void;
+  onSave: (organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) => void;
 }
 
 export function CreateChildRow({ organisations, onSave }: CreateChildRowProps) {
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('1970-01-01');
+  const [sex, setSex] = useState<Sex>('male');
+
   const [organisationId, setOrganisationId] = useState(organisations.length > 0 ? organisations[0].id : '');
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -23,9 +25,10 @@ export function CreateChildRow({ organisations, onSave }: CreateChildRowProps) {
     e.preventDefault();
 
     if(formRef.current!.reportValidity()) {
-      onSave(organisationId, name, dateOfBirth);
+      onSave(organisationId, { name, date_of_birth: dateOfBirth, sex });
       setName('');
       setDateOfBirth('1970-01-01');
+      setSex('male');
     }
   }
 
@@ -48,6 +51,12 @@ export function CreateChildRow({ organisations, onSave }: CreateChildRowProps) {
           value={dateOfBirth}
           onChange={e => setDateOfBirth((e.target as HTMLInputElement).value)}
         />
+      </td>
+      <td>
+        <select value={sex} onChange={e => setSex((e.target as HTMLSelectElement).value as Sex)}>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
       </td>
       <td>
         <select value={organisationId} onChange={onOrganisationChange}>

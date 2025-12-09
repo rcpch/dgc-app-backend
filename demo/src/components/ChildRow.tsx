@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import { Child, Organisation } from "../api";
+import { Child, Organisation, Sex } from "../api";
 import { organisationName } from "./ChildrenList";
 
 export type ChildWithOrganisations = Child & {
@@ -8,7 +8,7 @@ export type ChildWithOrganisations = Child & {
 
 type ChildRowProps = {
   childWithOrgs: ChildWithOrganisations;
-  onSave: (name: string, date_of_birth: string) => void;
+  onSave: (name: string, date_of_birth: string, sex: Sex) => void;
   onRemove: (organisation_id: string) => void;
 }
 
@@ -17,23 +17,26 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
 
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editingDateOfBirth, setEditingDateOfBirth] = useState<string | null>(null);
+  const [editingSex, setEditingSex] = useState<Sex | null>(null);
 
   function onStartEdit() {
     setEditing(true);
     setEditingName(childWithOrgs.name);
     setEditingDateOfBirth(childWithOrgs.date_of_birth);
+    setEditingSex(childWithOrgs.sex);
   }
 
   function onCancelEdit() {
     setEditing(false);
     setEditingName(null);
     setEditingDateOfBirth(null);
+    setEditingSex(null);
   }
 
   function onSubmit(e: Event) {
     e.preventDefault();
 
-    onSave(editingName!, editingDateOfBirth!);
+    onSave(editingName!, editingDateOfBirth!, editingSex!);
     setEditing(false);
   }
 
@@ -62,6 +65,19 @@ export function ChildRow({ childWithOrgs, onSave, onRemove }: ChildRowProps) {
           />
         ) : (
           childWithOrgs.date_of_birth
+        )}
+      </td>
+      <td>
+        {editing ? (
+          <select
+            value={editingSex!}
+            onChange={e => setEditingSex((e.target as HTMLSelectElement).value as Sex)}
+          >
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        ) : (
+          childWithOrgs.sex
         )}
       </td>
       <td>
