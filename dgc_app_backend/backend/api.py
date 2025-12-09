@@ -5,7 +5,7 @@ import jwt
 
 from datetime import date
 from uuid import UUID
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
@@ -205,22 +205,14 @@ class ChildSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
+    sex: Union['male', 'female']
+    gestation_days: int | None = None
 
 class ChildWithOrganisationsSchema(ChildSchema):
     organisation_ids: list[UUID]
 
 class ChildrenWithOrganisationsSchema(Schema):
     children: list[ChildWithOrganisationsSchema]
-
-def decrypt_child_fields(organisation_key_f: Fernet, child_org: ChildOrganisation) -> ChildSchema:
-    child = child_org.child
-    child_f = Fernet(decrypt_bytes(organisation_key_f, child_org.encrypted_child_key))
-
-    return ChildSchema(
-        id=child.id,
-        name=decrypt_str(child_f, child.encrypted_name),
-        date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
-    )
 
 
 @api.get("/children", auth=AuthBearer(), response=ChildrenWithOrganisationsSchema)
@@ -235,6 +227,8 @@ def children(request):
         'id',
         'encrypted_name',
         'encrypted_date_of_birth',
+        'sex',
+        'gestation_days',
         'organisation_ids',
         'encrypted_organisation_keys',
         'encrypted_child_keys',
@@ -254,10 +248,20 @@ def children(request):
         name = decrypt_str(child_f, row['encrypted_name'])
         date_of_birth = date.fromisoformat(decrypt_str(child_f, row['encrypted_date_of_birth']))
 
+        match row['sex']:
+            case 0:
+                sex = 'male'
+            case 1:
+                sex = 'female'
+            case _:
+                raise ValueError("Unknown sex code")
+
         rows.append(ChildWithOrganisationsSchema(
             id=row['id'],
             name=name,
             date_of_birth=date_of_birth,
+            sex=sex,
+            gestation_days=row['gestation_days'],
             organisation_ids=row['organisation_ids']
         ))
 
@@ -267,6 +271,8 @@ def children(request):
 class NewChildSchema(Schema):
     name: str
     date_of_birth: date
+    sex: Union['male', 'female']
+    gestation_days: int | None = None
 
 @api.post("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildSchema})
 def add_child(request, organisation_id: str, data: NewChildSchema):
@@ -278,9 +284,17 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
     encrypted_name = encrypt_str(child_f, data.name)
     encrypted_date_of_birth = encrypt_str(child_f, data.date_of_birth.isoformat())
 
+    match data.sex:
+        case 'male':
+            sex = 0
+        case 'female':
+            sex = 1
+
     child = Child.objects.create(
         encrypted_name=encrypted_name,
-        encrypted_date_of_birth=encrypted_date_of_birth
+        encrypted_date_of_birth=encrypted_date_of_birth,
+        sex = sex,
+        gestation_days = data.gestation_days
     )
 
     ChildOrganisation.objects.create(
@@ -292,7 +306,9 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
     return 200, ChildSchema(
         id=child.id,
         name=data.name,
-        date_of_birth=data.date_of_birth
+        date_of_birth=data.date_of_birth,
+        sex=data.sex,
+        gestation_days=data.gestation_days
     )
 
 
@@ -331,6 +347,8 @@ def add_existing_child_to_organisation(request, organisation_id: str, child_id: 
 class UpdateChildSchema(Schema):
     name: str | None = None
     date_of_birth: date | None = None
+    sex: Union['male', 'female'] | None = None
+    gestation_days: int | None = None
 
 @api.patch("/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema})
 def update_child(request, child_id: str, data: UpdateChildSchema):
@@ -340,13 +358,32 @@ def update_child(request, child_id: str, data: UpdateChildSchema):
         child.encrypted_name = encrypt_str(child_f, data.name)
     if data.date_of_birth is not None:
         child.encrypted_date_of_birth = encrypt_str(child_f, data.date_of_birth.isoformat())
+    if data.sex is not None:
+        match data.sex:
+            case 'male':
+                child.sex = 0
+            case 'female':
+                child.sex = 1
+
+    if data.gestation_days is not None:
+        child.gestation_days = data.gestation_days
 
     child.save()
+
+    match child.sex:
+        case 0:
+            sex = 'male'
+        case 1:
+            sex = 'female'
+        case _:
+            raise ValueError("Unknown sex code")
 
     return 200, ChildSchema(
         id=child.id,
         name=decrypt_str(child_f, child.encrypted_name),
-        date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
+        date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth)),
+        sex=sex,
+        gestation_days=child.gestation_days
     )
 
 @api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None})
