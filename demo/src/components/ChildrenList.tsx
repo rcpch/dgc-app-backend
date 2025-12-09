@@ -22,7 +22,7 @@ export function ChildrenList() {
   const organisations = appState.organisations.value;
   const children = appState.children.value;
 
-  async function onAddChild(organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) {
+  async function onAddChild(organisationId: string, child: Omit<Child, 'id'>) {
     appState.addChild(organisationId, child);
   }
 

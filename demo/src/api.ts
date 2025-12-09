@@ -22,7 +22,6 @@ export type Child = {
   name: string;
   date_of_birth: string;
   sex: Sex;
-  organisation_ids: string[];
 };
 
 export type ExpandedChild = Child & {
@@ -151,7 +150,7 @@ export async function getChildrenInOrganisation(organisation_id: string): Promis
   return children;
 }
 
-export async function addChild(organisation_id: string, child: Omit<Child, 'id' | 'organisation_ids'>): Promise<Child> {
+export async function addChild(organisation_id: string, child: Omit<Child, 'id'>): Promise<Child> {
   const response = await authFetch(`/api/organisations/${organisation_id}/children`, {
       method: 'POST',
       headers: {
@@ -171,7 +170,7 @@ export async function removeChild(organisation_id: string, id: string): Promise<
   });
 }
 
-export async function updateChild(child: Omit<Child, 'organisation_ids'>): Promise<Child> {
+export async function updateChild(child: Child): Promise<Child> {
   const body = { ...child };
   delete body.id;
 

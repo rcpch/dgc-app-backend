@@ -4,7 +4,7 @@ import { organisationName } from "./ChildrenList";
 
 type CreateChildRowProps = {
   organisations: Organisation[];
-  onSave: (organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) => void;
+  onSave: (organisationId: string, child: Omit<Child, 'id'>) => void;
 }
 
 export function CreateChildRow({ organisations, onSave }: CreateChildRowProps) {

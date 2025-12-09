@@ -9,7 +9,7 @@ export type AppState = {
   authData: Signal<AuthData | undefined>;
   organisations: Signal<Organisation[]>;
   children: Signal<ExpandedChild[]>;
-  addChild: (organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) => Promise<void>;
+  addChild: (organisationId: string, child: Omit<Child, 'id'>) => Promise<void>;
   addObservation: (childId: string, observation: Observation) => Promise<void>;
   refetchChildren: () => Promise<void>;
   logout: () => void;
@@ -30,7 +30,7 @@ export function createAppState(): AppState {
     authData: authData,
     organisations: organisations,
     children: children,
-    addChild: async (organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) => {
+    addChild: async (organisationId: string, child: Omit<Child, 'id'>) => {
       const newChild: ExpandedChild = {
         ...await addChild(organisationId, child),
         organisation_ids: [organisationId],
