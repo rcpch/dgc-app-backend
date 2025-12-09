@@ -260,8 +260,6 @@ def children(request):
             case _:
                 raise ValueError("Unknown sex code")
 
-        logger.info(f"Decrypted child {row['id']}: {name}, {date_of_birth}, {sex}")
-
         rows.append(ChildWithOrganisationsSchema(
             id=row['id'],
             name=name,
