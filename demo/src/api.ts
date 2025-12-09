@@ -15,10 +15,13 @@ export type Organisation = {
   name?: string;
 }
 
+export type Sex = 'male' | 'female';
+
 export type Child = {
   id: string;
   name: string;
   date_of_birth: string;
+  sex: Sex;
   organisation_ids: string[];
 };
 
@@ -135,18 +138,18 @@ export async function getChildrenInOrganisation(organisation_id: string): Promis
   return children;
 }
 
-export async function addChild(organisation_id: string, name: string, date_of_birth: string): Promise<Child> {
+export async function addChild(organisation_id: string, child: Omit<Child, 'id' | 'organisation_ids'>): Promise<Child> {
   const response = await authFetch(`/api/organisations/${organisation_id}/children`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ name, date_of_birth })
+      body: JSON.stringify(child)
     });
 
-    const child = await response.json();
+    const ret = await response.json();
 
-    return child;
+    return ret;
 }
 
 export async function removeChild(organisation_id: string, id: string): Promise<void> {

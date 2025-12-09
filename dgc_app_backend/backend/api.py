@@ -5,7 +5,7 @@ import jwt
 
 from datetime import date
 from uuid import UUID
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Literal
 
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
@@ -200,12 +200,16 @@ def remove_user_from_organisation(request, organisation_id: str, user_id: str):
 
     return 204, None
 
+Sex = Union[
+    Literal['male'],
+    Literal['female']
+]
 
 class ChildSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
-    sex: Union['male', 'female']
+    sex: Sex
     gestation_days: int | None = None
 
 class ChildWithOrganisationsSchema(ChildSchema):
@@ -256,6 +260,8 @@ def children(request):
             case _:
                 raise ValueError("Unknown sex code")
 
+        logger.info(f"Decrypted child {row['id']}: {name}, {date_of_birth}, {sex}")
+
         rows.append(ChildWithOrganisationsSchema(
             id=row['id'],
             name=name,
@@ -271,7 +277,7 @@ def children(request):
 class NewChildSchema(Schema):
     name: str
     date_of_birth: date
-    sex: Union['male', 'female']
+    sex: Sex
     gestation_days: int | None = None
 
 @api.post("/organisations/{organisation_id}/children", auth=AuthBearer(), response={200: ChildSchema})
@@ -347,7 +353,7 @@ def add_existing_child_to_organisation(request, organisation_id: str, child_id: 
 class UpdateChildSchema(Schema):
     name: str | None = None
     date_of_birth: date | None = None
-    sex: Union['male', 'female'] | None = None
+    sex: Sex | None = None
     gestation_days: int | None = None
 
 @api.patch("/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema})

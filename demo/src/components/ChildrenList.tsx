@@ -1,4 +1,4 @@
-import { addChild, removeChild, getChildrenInOrganisation, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild } from "../api";
+import { addChild, removeChild, getChildrenInOrganisation, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild, Sex } from "../api";
 import { CreateChildRow } from "./AddChildRow";
 import { ChildRow, ChildWithOrganisations } from "./ChildRow";
 import { useLoggedInAppState } from '../state';
@@ -22,15 +22,16 @@ export function ChildrenList() {
   const organisations = appState.organisations.value;
   const children = appState.children.value;
 
-  async function onAddChild(organisationId: string, name: string, date_of_birth: string) {
-    appState.addChild(organisationId, name, date_of_birth);
+  async function onAddChild(organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) {
+    appState.addChild(organisationId, child);
   }
 
-  async function onSaveEdit(id: string, name: string, date_of_birth: string) {
-    const child = await updateChild({
+  async function onSaveEdit(id: string, name: string, date_of_birth: string, sex: Sex) {
+    await updateChild({
       id,
       name,
       date_of_birth,
+      sex,
     });
 
     await appState.refetchChildren();
@@ -57,6 +58,7 @@ export function ChildrenList() {
       <tr>
         <th>Name</th>
         <th>Birth Date</th>
+        <th>Sex</th>
         <th>Organisations</th>
         <th></th>
       </tr>
@@ -66,8 +68,8 @@ export function ChildrenList() {
         <ChildRow
           key={childWithOrgs.id}
           childWithOrgs={childWithOrgs}
-          onSave={(name, date_of_birth) => {
-            onSaveEdit(childWithOrgs.id, name, date_of_birth);
+          onSave={(name, date_of_birth, sex) => {
+            onSaveEdit(childWithOrgs.id, name, date_of_birth, sex);
           }}
           onRemove={(organisation_id) => {
             onRemoveChild(organisation_id, childWithOrgs.id);
