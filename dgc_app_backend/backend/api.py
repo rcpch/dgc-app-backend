@@ -295,12 +295,15 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
             sex = 0
         case 'female':
             sex = 1
+    
+    days_since_birth = (date.today() - data.date_of_birth).days
 
     child = Child.objects.create(
         encrypted_name=encrypted_name,
         encrypted_date_of_birth=encrypted_date_of_birth,
         sex = sex,
-        gestation_days = data.gestation_days
+        gestation_days = data.gestation_days,
+        days_since_birth = days_since_birth
     )
 
     ChildOrganisation.objects.create(
@@ -364,6 +367,7 @@ def update_child(request, child_id: str, data: UpdateChildSchema):
         child.encrypted_name = encrypt_str(child_f, data.name)
     if data.date_of_birth is not None:
         child.encrypted_date_of_birth = encrypt_str(child_f, data.date_of_birth.isoformat())
+        child.days_since_birth = (date.today() - data.date_of_birth).days
     if data.sex is not None:
         match data.sex:
             case 'male':
