@@ -2,6 +2,7 @@ import os
 import logging
 import uuid
 import jwt
+import json
 
 from datetime import date
 from uuid import UUID
@@ -41,6 +42,10 @@ from .auth import (
 from .organisations import (
     create_organisation,
 )
+from .dgc_api import (
+    call_dgc_api
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +212,12 @@ Sex = Union[
     Literal['female']
 ]
 
+ObservationType = Union[
+    Literal['height'],
+    Literal['weight'],
+    Literal['ofc']
+]
+
 class ChildSchema(Schema):
     id: UUID
     name: str
@@ -216,7 +227,7 @@ class ChildSchema(Schema):
 
 class ObservationSchema(Schema):
     observation_date: date
-    observation_type: str # TODO MRB: proper validation
+    observation_type: ObservationType
     observation_value: float
 
 class ExpandedChild(ChildSchema):
@@ -454,7 +465,7 @@ def delete_child(request, organisation_id: str, child_id: str):
 
 @api.post("/children/{child_id}/observations", auth=AuthBearer(), response={201: None})
 def add_observation(request, child_id: str, data: ObservationSchema):
-    (child, _, _) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
+    (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
 
     # TODO MRB: call dgc API and save result
 
@@ -468,9 +479,22 @@ def add_observation(request, child_id: str, data: ObservationSchema):
         case _:
             return 400, {"detail": "Invalid observation type"}
 
-    Observation.objects.create(
+    date_of_birth = date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
+
+    dgc_api_result = call_dgc_api(
+        date_of_birth=date_of_birth,
+        observation_date=data.observation_date,
+        sex_code=child.sex,
+        observation_type_code=observation_type,
+        observation_value=data.observation_value
+    )
+
+    encrypted_dgc_api_result = encrypt_str(child_f, json.dumps(dgc_api_result))
+
+    obs = Observation.objects.create(
         observation_type=observation_type,
         observation_value=data.observation_value,
+        encrypted_dgc_api_result=encrypted_dgc_api_result,
         child=child
     )
 
