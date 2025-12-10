@@ -24,23 +24,27 @@ export type Child = {
   sex: Sex;
 };
 
+export type ObservationType = 'height' | 'weight' | 'ofc';
+
+export type Observation = {
+  observation_date: string;
+  observation_type: ObservationType;
+  observation_value: number
+}
+
+export type ExpandedObservation = Observation & {
+  dgc_api_result: any
+};
+
 export type ExpandedChild = Child & {
   organisation_ids: string[];
-  observations: Observation[];
+  observations: ExpandedObservation[];
 }
 
 export type ExchangeIdTokenResponse = {
   access_token: string;
   email: string;
   name: string;
-}
-
-export type ObservationType = 'height' | 'weight' | 'ofc';
-
-export type Observation = {
-  observation_date: string;
-  observation_type: ObservationType;
-  observation_value: number;
 }
 
 export async function exchangeIdToken(oauth_server: string, id_token: string): Promise<ExchangeIdTokenResponse> {

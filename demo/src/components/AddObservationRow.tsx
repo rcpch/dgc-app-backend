@@ -48,7 +48,13 @@ export function CreateObservationRow({ onSave }: CreateObservationRowProps) {
               />
         </form>
       </td>
-       <td>
+      <td>
+        {/* Empty cell for centile */}
+      </td>
+      <td>
+        {/* Empty cell for SDS */}
+      </td>
+      <td>
         <button onClick={onSubmit}>
           Add
         </button>

@@ -21,6 +21,8 @@ export function Observations({ child_id }: { child_id: string }) {
             <th>Date</th>
             <th>Observation Type</th>
             <th>Observation Value</th>
+            <th>Centile</th>
+            <th>SDS</th>
             <th></th>
           </tr>
         </thead>
@@ -30,6 +32,15 @@ export function Observations({ child_id }: { child_id: string }) {
               <td>{new Date(observation.observation_date).toLocaleDateString()}</td>
               <td>{observation.observation_type}</td>
               <td>{observation.observation_value}</td>
+              <td>
+                {observation.dgc_api_result.measurement_calculated_values.corrected_centile}
+              </td>
+              <td>
+                {observation.dgc_api_result.measurement_calculated_values.corrected_sds}
+              </td>
+              <td>
+                {/* Empty cell for actions */}
+              </td>
             </tr>
           ))}
           <CreateObservationRow
