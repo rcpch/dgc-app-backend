@@ -116,7 +116,7 @@ class Observation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     # Encrypted with the child key
-    encrypted_dgc_api_result = models.CharField(max_length=3000)
+    encrypted_dgc_api_result = models.CharField(max_length=10000)
 
     observation_type = models.PositiveSmallIntegerField(
         choices=[

@@ -48,11 +48,7 @@ def call_dgc_api(date_of_birth: date, observation_date: date, sex_code: int, obs
         "observation_value": observation_value
     }
 
-    logger.info("Calling DGC API with params:", json.dumps(params))
-
     response = httpx.post(dgc_api_url, headers=headers, json=params)
-    logger.info("DGC API response body: %s", response.text)
-
     response.raise_for_status()
 
     return response.json()

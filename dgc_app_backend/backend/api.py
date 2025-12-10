@@ -230,9 +230,12 @@ class ObservationSchema(Schema):
     observation_type: ObservationType
     observation_value: float
 
+class ExpandedObservationSchema(ObservationSchema):
+    dgc_api_result: dict
+
 class ExpandedChild(ChildSchema):
     organisation_ids: list[UUID]
-    observations: list[ObservationSchema]
+    observations: list[ExpandedObservationSchema]
 
 class ExpandedChildren(Schema):
     children: list[ExpandedChild]
@@ -294,18 +297,19 @@ def children(request):
             case _:
                 raise ValueError("Unknown sex code")
 
-        observations: list[ObservationSchema] = []
+        observations = []
         for (enc_result, obs_type, obs_value) in zip(
             row['observations_dgc_api_results'] or [],
             row['observations_types'] or [],
             row['observations_values'] or []
         ):
-            logger.info(f"Decoding observation for child {row['id']}: type={obs_type}, value={obs_value}")
+            dgc_api_result = json.loads(decrypt_str(child_f, enc_result))
 
-            observations.append(ObservationSchema(
+            observations.append(ExpandedObservationSchema(
                 observation_date=date.today(),  # TODO MRB: store real date
                 observation_type={1: 'height', 2: 'weight', 3: 'ofc'}.get(obs_type, 'unknown'),
-                observation_value=obs_value
+                observation_value=obs_value,
+                dgc_api_result=dgc_api_result
             ))
 
         rows.append(ExpandedChild(
