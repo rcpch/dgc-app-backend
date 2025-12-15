@@ -1,12 +1,14 @@
 import pytest
 from datetime import date
 from ninja.testing import TestClient
+from unittest.mock import patch, Mock
 
 from ..api import api
 from ..auth import generate_access_token, get_or_create_user
 from ..models import User, Organisation, Child, UserOrganisation, UserRegistration
 from ..crypto import sha_256
 from ..organisations import create_organisation
+
 
 @pytest.fixture
 def user_fixture():
@@ -22,11 +24,21 @@ def user_fixture():
     return auth_data
 
 
-client = TestClient(api)
+@pytest.fixture(autouse=True)
+def mock_dgc_api_call():
+    with patch("dgc_app_backend.backend.api.call_dgc_api") as mock_call:
+        mock_call.return_value = {}
+        yield mock_call
+
+
+@pytest.fixture(scope="session")
+def client():
+    client = TestClient(api)
+    return client
 
 
 @pytest.mark.django_db
-def test_hello(user_fixture):
+def test_hello(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     response = client.get("/hello", headers={
@@ -38,7 +50,7 @@ def test_hello(user_fixture):
 
 
 @pytest.mark.django_db
-def test_sub_is_hashed(user_fixture):
+def test_sub_is_hashed(user_fixture, client):
     assert User.objects.count() == 1
     assert UserRegistration.objects.count() == 1
 
@@ -62,7 +74,7 @@ def test_user_pii_is_encrypted(user_fixture):
 
 
 @pytest.mark.django_db
-def test_initial_organisation_list(user_fixture):
+def test_initial_organisation_list(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     response = client.get("/organisations", headers={
@@ -83,7 +95,7 @@ def test_initial_organisation_list(user_fixture):
 
 
 @pytest.mark.django_db
-def test_child_in_single_org(user_fixture):
+def test_child_in_single_org(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id
@@ -114,7 +126,7 @@ def test_child_in_single_org(user_fixture):
 
 
 @pytest.mark.django_db
-def test_child_pii_is_encrypted(user_fixture):
+def test_child_pii_is_encrypted(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id
@@ -137,7 +149,7 @@ def test_child_pii_is_encrypted(user_fixture):
 
 
 @pytest.mark.django_db
-def test_update_child(user_fixture):
+def test_update_child(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id
@@ -179,7 +191,7 @@ def test_update_child(user_fixture):
 
 
 @pytest.mark.django_db
-def test_user_in_multiple_orgs(user_fixture):
+def test_user_in_multiple_orgs(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     org1 = Organisation.objects.first()
@@ -210,7 +222,7 @@ def test_user_in_multiple_orgs(user_fixture):
 
 
 @pytest.mark.django_db
-def test_child_in_multiple_orgs(user_fixture):
+def test_child_in_multiple_orgs(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     org1 = Organisation.objects.first()
@@ -261,7 +273,7 @@ def test_child_in_multiple_orgs(user_fixture):
 
 
 @pytest.mark.django_db
-def test_add_observation(user_fixture):
+def test_add_observation(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id

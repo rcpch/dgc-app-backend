@@ -471,8 +471,6 @@ def delete_child(request, organisation_id: str, child_id: str):
 def add_observation(request, child_id: str, data: ObservationSchema):
     (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
 
-    # TODO MRB: call dgc API and save result
-
     match data.observation_type:
         case 'height':
             observation_type = 1

@@ -1,4 +1,3 @@
-import json
 import logging
 
 from datetime import date
@@ -11,9 +10,8 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-# TODO MRB: gestation
-# TODO MRB: reference
-def call_dgc_api(date_of_birth: date, observation_date: date, sex_code: int, observation_type_code: int, observation_value: float) -> dict:
+# TODO MRB: gestation and reference (https://github.com/rcpch/dgc-app-backend/issues/15)
+def call_dgc_api(date_of_birth: date, observation_date: date, sex_code: int, observation_type_code: int, observation_value: float) -> dict:    
     dgc_api_url = f"{settings.DGC_API_URL}/uk-who/calculation"
     dgc_api_key = settings.DGC_API_KEY
 
