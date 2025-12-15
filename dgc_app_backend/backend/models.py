@@ -112,6 +112,31 @@ class ChildOrganisation(models.Model):
         unique_together = ('child', 'organisation')
 
 
+class Observation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Encrypted with the child key
+    encrypted_dgc_api_result = models.CharField(max_length=10000)
+
+    observation_type = models.PositiveSmallIntegerField(
+        choices=[
+            (1, "height"),
+            (2, "weight"),
+            (3, "ofc")
+        ]
+    )
+
+    observation_value = models.DecimalField(max_digits=5, decimal_places=2)
+
+    child = models.ForeignKey(
+        to=Child,
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        return str(self.id)
+
+
 # TODO MRB: this needs to expire
 class OrganisationInvite(models.Model):
     # Plaintext ID to lookup this data

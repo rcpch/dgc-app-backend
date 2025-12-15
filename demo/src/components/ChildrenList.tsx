@@ -1,4 +1,4 @@
-import { addChild, removeChild, getChildrenInOrganisation, Organisation, Child, removeUserFromOrganisation, shareOrganisation, updateChild, Sex } from "../api";
+import { removeChild, Organisation, Child, updateChild, Sex } from "../api";
 import { CreateChildRow } from "./AddChildRow";
 import { ChildRow, ChildWithOrganisations } from "./ChildRow";
 import { useLoggedInAppState } from '../state';
@@ -22,7 +22,7 @@ export function ChildrenList() {
   const organisations = appState.organisations.value;
   const children = appState.children.value;
 
-  async function onAddChild(organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) {
+  async function onAddChild(organisationId: string, child: Omit<Child, 'id'>) {
     appState.addChild(organisationId, child);
   }
 

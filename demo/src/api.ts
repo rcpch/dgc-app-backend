@@ -22,8 +22,24 @@ export type Child = {
   name: string;
   date_of_birth: string;
   sex: Sex;
-  organisation_ids: string[];
 };
+
+export type ObservationType = 'height' | 'weight' | 'ofc';
+
+export type Observation = {
+  observation_date: string;
+  observation_type: ObservationType;
+  observation_value: number
+}
+
+export type ExpandedObservation = Observation & {
+  dgc_api_result: any
+};
+
+export type ExpandedChild = Child & {
+  organisation_ids: string[];
+  observations: ExpandedObservation[];
+}
 
 export type ExchangeIdTokenResponse = {
   access_token: string;
@@ -122,7 +138,7 @@ export async function getOrganisations(): Promise<Organisation[]> {
   return organisations;
 }
 
-export async function getChildren(): Promise<Child[]> {
+export async function getChildren(): Promise<ExpandedChild[]> {
   const response = await authFetch(`/api/children`);
 
   const { children } = await response.json();
@@ -138,7 +154,7 @@ export async function getChildrenInOrganisation(organisation_id: string): Promis
   return children;
 }
 
-export async function addChild(organisation_id: string, child: Omit<Child, 'id' | 'organisation_ids'>): Promise<Child> {
+export async function addChild(organisation_id: string, child: Omit<Child, 'id'>): Promise<Child> {
   const response = await authFetch(`/api/organisations/${organisation_id}/children`, {
       method: 'POST',
       headers: {
@@ -158,7 +174,7 @@ export async function removeChild(organisation_id: string, id: string): Promise<
   });
 }
 
-export async function updateChild(child: Omit<Child, 'organisation_ids'>): Promise<Child> {
+export async function updateChild(child: Child): Promise<Child> {
   const body = { ...child };
   delete body.id;
 
@@ -171,6 +187,16 @@ export async function updateChild(child: Omit<Child, 'organisation_ids'>): Promi
   });
 
   return response.json();
+}
+
+export async function addObservation(child_id: string, observation: Observation): Promise<void> {
+  await authFetch(`/api/children/${child_id}/observations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(observation)
+  });
 }
 
 export type InviteLink = {

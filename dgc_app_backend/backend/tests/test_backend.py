@@ -1,12 +1,14 @@
 import pytest
 from datetime import date
 from ninja.testing import TestClient
+from unittest.mock import patch, Mock
 
 from ..api import api
 from ..auth import generate_access_token, get_or_create_user
 from ..models import User, Organisation, Child, UserOrganisation, UserRegistration
 from ..crypto import sha_256
 from ..organisations import create_organisation
+
 
 @pytest.fixture
 def user_fixture():
@@ -22,11 +24,21 @@ def user_fixture():
     return auth_data
 
 
-client = TestClient(api)
+@pytest.fixture(autouse=True)
+def mock_dgc_api_call():
+    with patch("dgc_app_backend.backend.api.call_dgc_api") as mock_call:
+        mock_call.return_value = {}
+        yield mock_call
+
+
+@pytest.fixture(scope="session")
+def client():
+    client = TestClient(api)
+    return client
 
 
 @pytest.mark.django_db
-def test_hello(user_fixture):
+def test_hello(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     response = client.get("/hello", headers={
@@ -38,7 +50,7 @@ def test_hello(user_fixture):
 
 
 @pytest.mark.django_db
-def test_sub_is_hashed(user_fixture):
+def test_sub_is_hashed(user_fixture, client):
     assert User.objects.count() == 1
     assert UserRegistration.objects.count() == 1
 
@@ -62,7 +74,7 @@ def test_user_pii_is_encrypted(user_fixture):
 
 
 @pytest.mark.django_db
-def test_initial_organisation_list(user_fixture):
+def test_initial_organisation_list(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     response = client.get("/organisations", headers={
@@ -83,7 +95,7 @@ def test_initial_organisation_list(user_fixture):
 
 
 @pytest.mark.django_db
-def test_child_in_single_org(user_fixture):
+def test_child_in_single_org(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id
@@ -114,7 +126,7 @@ def test_child_in_single_org(user_fixture):
 
 
 @pytest.mark.django_db
-def test_child_pii_is_encrypted(user_fixture):
+def test_child_pii_is_encrypted(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id
@@ -137,7 +149,7 @@ def test_child_pii_is_encrypted(user_fixture):
 
 
 @pytest.mark.django_db
-def test_update_child(user_fixture):
+def test_update_child(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     organisation_id = Organisation.objects.first().id
@@ -179,7 +191,7 @@ def test_update_child(user_fixture):
 
 
 @pytest.mark.django_db
-def test_user_in_multiple_orgs(user_fixture):
+def test_user_in_multiple_orgs(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     org1 = Organisation.objects.first()
@@ -210,7 +222,7 @@ def test_user_in_multiple_orgs(user_fixture):
 
 
 @pytest.mark.django_db
-def test_child_in_multiple_orgs(user_fixture):
+def test_child_in_multiple_orgs(user_fixture, client):
     access_token = generate_access_token(user_fixture.sub)
 
     org1 = Organisation.objects.first()
@@ -258,6 +270,53 @@ def test_child_in_multiple_orgs(user_fixture):
     assert children[0]["date_of_birth"] == "2010-01-01"
 
     assert set(children[0]["organisation_ids"]) == {str(org1.id), str(org2.id)}
+
+
+@pytest.mark.django_db
+def test_add_observation(user_fixture, client):
+    access_token = generate_access_token(user_fixture.sub)
+
+    organisation_id = Organisation.objects.first().id
+
+    # First create a child
+    response = client.post(f"/organisations/{organisation_id}/children", headers={
+        "Authorization": f"Bearer {access_token}"
+    }, json={
+        "name": "Child User",
+        "date_of_birth": "2010-01-01",
+        "sex": "male"
+    })
+
+    assert response.status_code == 200
+    child_id = response.json()["id"]
+
+    # Now add an observation
+    response = client.post(f"/children/{child_id}/observations", headers={
+        "Authorization": f"Bearer {access_token}"
+    }, json={
+        "observation_date": "2020-01-15",
+        "observation_type": "height",
+        "observation_value": 145.5
+    })
+
+    assert response.status_code == 201
+
+    # Verify the observation appears in the children list
+    response = client.get(f"/children", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+
+    assert response.status_code == 200
+
+    children = response.json()["children"]
+    assert len(children) == 1
+    assert len(children[0]["observations"]) == 1
+
+    observation = children[0]["observations"][0]
+    assert observation["observation_type"] == "height"
+    assert observation["observation_value"] == 145.5
+    assert "dgc_api_result" in observation
+
 
 # TODO MRB: add test for child in multiple orgs
 #   - updates reflected cross org

@@ -3,13 +3,14 @@ import { AuthData, clearAuthData, getAuthData } from "./auth";
 import { useContext } from "preact/hooks";
 import { signal, Signal } from "@preact/signals";
 import { useLocation } from "preact-iso";
-import { getOrganisations, Organisation, Child, getChildren, addChild } from "./api";
+import { getOrganisations, Organisation, Child, ExpandedChild, getChildren, addChild, Observation, addObservation } from "./api";
 
 export type AppState = {
   authData: Signal<AuthData | undefined>;
   organisations: Signal<Organisation[]>;
-  children: Signal<Child[]>;
-  addChild: (organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) => Promise<void>;
+  children: Signal<ExpandedChild[]>;
+  addChild: (organisationId: string, child: Omit<Child, 'id'>) => Promise<void>;
+  addObservation: (childId: string, observation: Observation) => Promise<void>;
   refetchChildren: () => Promise<void>;
   logout: () => void;
 }
@@ -17,7 +18,7 @@ export type AppState = {
 export function createAppState(): AppState {
   const authData = signal<AuthData | undefined>(getAuthData());
   const organisations = signal<Organisation[]>([]);
-  const children = signal<Child[]>([]);
+  const children = signal<ExpandedChild[]>([]);
 
   // TODO MRB: catch errors
   if(authData.value?.access_token) {
@@ -29,11 +30,17 @@ export function createAppState(): AppState {
     authData: authData,
     organisations: organisations,
     children: children,
-    addChild: async (organisationId: string, child: Omit<Child, 'id' | 'organisation_ids'>) => {
-      const newChild = await addChild(organisationId, child);
-      newChild.organisation_ids = [organisationId];
+    addChild: async (organisationId: string, child: Omit<Child, 'id'>) => {
+      const newChild: ExpandedChild = {
+        ...await addChild(organisationId, child),
+        organisation_ids: [organisationId],
+        observations: []
+      };
 
       children.value = [...children.value, newChild];
+    },
+    addObservation: async (childId: string, observation: Observation) => {
+      await addObservation(childId, observation);
     },
     refetchChildren: async () => {
       children.value = await getChildren();
