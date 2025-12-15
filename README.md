@@ -63,7 +63,6 @@ Users are invited to join an organisation using a link with the following data
 Each invite in the database stores the organisation key encrypted with an ephemeral key derived from the share password.
 Joining an org involves decrypting the key, checking it works and then writing a new `UserOrganisation` linking model.
 
-<<<<<<< HEAD
 | Model              | Field                      | Encryption Key | Notes                                                                                                                                            |
 |--------------------|----------------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | User               | id                         |                | Generic secure random UUID stored plaintext. Placeholder for when users can log in with multiple methods (for example adding NHS login)          |
