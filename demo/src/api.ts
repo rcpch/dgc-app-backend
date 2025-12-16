@@ -25,7 +25,10 @@ export type Child = {
   sex: Sex;
 };
 
-export type ObservationType = 'height' | 'weight' | 'ofc';
+export type ObservationType =
+  'height' |
+  'weight' |
+  'ofc';
 
 export type Observation = {
   observation_date: string;
@@ -33,13 +36,16 @@ export type Observation = {
   observation_value: number
 }
 
-export type Reference =
-  'uk-who' |
-  'turner' |
-  'trisomy-21' |
-  'trisomy-21-aap' |
-  'cdc' |
-  'who';
+export const REFERENCES = [
+  'uk-who',
+  'turner',
+  'trisomy-21',
+  'trisomy-21-aap',
+  'cdc',
+  'who'
+] as const;
+
+export type Reference = typeof REFERENCES[number];
 
 export type ExpandedObservation = Observation & {
   dgc_api_result: any

@@ -2,20 +2,22 @@ import { useEffect, useState } from "preact/hooks";
 import { Nav } from "../components/Nav";
 import { CreateObservationRow } from "../components/AddObservationRow";
 import { useLoggedInAppState } from "../state";
-import { addObservation, getObservations } from "../api";
+import { addObservation, getObservations, Reference, REFERENCES } from "../api";
 
 export function Observations({ child_id }: { child_id: string }) {
   const appState = useLoggedInAppState();
+
+  const [reference, setReference] = useState<Reference>('uk-who');
   const [observations, setObservations] = useState(null);
 
-  async function fetchObservations(child_id: string) {
-    const observations = await getObservations(child_id, "uk-who");
+  async function fetchObservations(child_id: string, reference: Reference) {
+    const observations = await getObservations(child_id, reference);
     setObservations(observations);
   }
 
   useEffect(() => {
-    fetchObservations(child_id);
-  }, [child_id]);
+    fetchObservations(child_id, reference);
+  }, [child_id, reference]);
 
   const child = appState.children.value.find(c => c.id === child_id);
 
@@ -26,7 +28,16 @@ export function Observations({ child_id }: { child_id: string }) {
   return (
     <div id="app" class="container">
       <Nav appState={appState} />
-      <h1>{child.name}</h1>
+      <div>
+        <h1>{child.name}</h1>
+        <select onChange={e => setReference(e.currentTarget.value as Reference)}>
+          {REFERENCES.map(option => (
+            <option value={option} selected={reference === option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
       <table>
         <thead>
           <tr>
