@@ -26,7 +26,7 @@ def user_fixture():
 
 @pytest.fixture(autouse=True)
 def mock_dgc_api_call():
-    with patch("dgc_app_backend.backend.api.call_dgc_api") as mock_call:
+    with patch("dgc_app_backend.backend.api.call_bulk_dgc_api") as mock_call:
         mock_call.return_value = {}
         yield mock_call
 
@@ -301,17 +301,16 @@ def test_add_observation(user_fixture, client):
     assert response.status_code == 201
 
     # Verify the observation appears in the children list
-    response = client.get(f"/children", headers={
+    response = client.get(f"/children/{child_id}/observations/uk-who", headers={
         "Authorization": f"Bearer {access_token}"
     })
 
     assert response.status_code == 200
 
-    children = response.json()["children"]
-    assert len(children) == 1
-    assert len(children[0]["observations"]) == 1
+    observations = response.json()["observations"]
+    assert len(observations) == 1
 
-    observation = children[0]["observations"][0]
+    observation = observations[0]
     assert observation["observation_type"] == "height"
     assert observation["observation_value"] == 145.5
     assert "dgc_api_result" in observation
