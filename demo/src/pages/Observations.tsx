@@ -1,9 +1,21 @@
+import { useEffect, useState } from "preact/hooks";
 import { Nav } from "../components/Nav";
 import { CreateObservationRow } from "../components/AddObservationRow";
 import { useLoggedInAppState } from "../state";
+import { addObservation, getObservations } from "../api";
 
 export function Observations({ child_id }: { child_id: string }) {
   const appState = useLoggedInAppState();
+  const [observations, setObservations] = useState(null);
+
+  async function fetchObservations(child_id: string) {
+    const observations = await getObservations(child_id, "uk-who");
+    setObservations(observations);
+  }
+
+  useEffect(() => {
+    fetchObservations(child_id);
+  }, [child_id]);
 
   const child = appState.children.value.find(c => c.id === child_id);
 
@@ -27,7 +39,7 @@ export function Observations({ child_id }: { child_id: string }) {
           </tr>
         </thead>
         <tbody>
-          {child.observations.map(observation => (
+          {(observations ?? []).map(observation => (
             <tr>
               <td>{new Date(observation.observation_date).toLocaleDateString()}</td>
               <td>{observation.observation_type}</td>
@@ -45,13 +57,13 @@ export function Observations({ child_id }: { child_id: string }) {
           ))}
           <CreateObservationRow
             onSave={async (observationDate, observationType, observationValue) => {
-              await appState.addObservation(child.id, {
+              await addObservation(child.id, {
                 observation_date: observationDate.toISOString(),
                 observation_type: observationType,
                 observation_value: observationValue
               });
 
-              await appState.refetchChildren();
+              await fetchObservations(child.id);
             }}
           />
         </tbody>

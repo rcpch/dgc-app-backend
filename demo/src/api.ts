@@ -1,3 +1,4 @@
+import { Ref } from "preact";
 import { getAuthData, saveAuthData } from "./auth";
 import { refreshToken } from "./oauth";
 
@@ -32,13 +33,20 @@ export type Observation = {
   observation_value: number
 }
 
+export type Reference =
+  'uk-who' |
+  'turner' |
+  'trisomy-21' |
+  'trisomy-21-aap' |
+  'cdc' |
+  'who';
+
 export type ExpandedObservation = Observation & {
   dgc_api_result: any
 };
 
 export type ExpandedChild = Child & {
   organisation_ids: string[];
-  observations: ExpandedObservation[];
 }
 
 export type ExchangeIdTokenResponse = {
@@ -187,6 +195,14 @@ export async function updateChild(child: Child): Promise<Child> {
   });
 
   return response.json();
+}
+
+export async function getObservations(child_id: string, reference: Reference): Promise<ExpandedObservation[]> {
+  const response = await authFetch(`/api/children/${child_id}/observations/${reference}`);
+
+  const { observations } = await response.json();
+
+  return observations;
 }
 
 export async function addObservation(child_id: string, observation: Observation): Promise<void> {

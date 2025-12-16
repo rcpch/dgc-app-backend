@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.core.validators import MaxValueValidator 
 from cryptography.fernet import Fernet
 
 from .crypto import decrypt_bytes
@@ -36,6 +37,8 @@ class UserRegistration(models.Model):
 
 class Organisation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # TODO MRB: default reference?
 
     # Encrypted with the organisation key
     encrypted_name = models.CharField(max_length=300, blank=True, null=True)
@@ -89,6 +92,8 @@ class Child(models.Model):
     # Plaintext - for analysis
     days_since_birth = models.PositiveIntegerField()
 
+    # TODO MRB: default reference?
+
     # TODO: in the future add plaintext linkage identifiers like NHS number
 
     def __str__(self):
@@ -115,9 +120,6 @@ class ChildOrganisation(models.Model):
 class Observation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Encrypted with the child key
-    encrypted_dgc_api_result = models.CharField(max_length=10000)
-
     observation_type = models.PositiveSmallIntegerField(
         choices=[
             (1, "height"),
@@ -126,10 +128,46 @@ class Observation(models.Model):
         ]
     )
 
+    # Encrypted with the child key
+    encrypted_observation_date = models.CharField(max_length=300)
+
     observation_value = models.DecimalField(max_digits=5, decimal_places=2)
 
     child = models.ForeignKey(
         to=Child,
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        return str(self.id)
+
+
+class DGCResult(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    reference = models.CharField(
+        max_length=20,
+        choices=[
+            ("uk-who", "uk-who"),
+            ("turner", "turner"),
+            ("trisomy-21", "trisomy-21"),
+            ("trisomy-21-aap", "trisomy-21-aap"),
+            ("cdc", "cdc"),
+            ("who", "who")
+        ])
+
+    # Encrypted with the child key
+    encrypted_dgc_api_result = models.CharField(max_length=10000)
+
+    # Plaintext - for analysis
+    corrected_sds = models.DecimalField(max_digits=5, decimal_places=2)
+    corrected_centile = models.PositiveIntegerField(validators=[MaxValueValidator(100)])
+
+    chronological_sds = models.DecimalField(max_digits=5, decimal_places=2)
+    chronological_centile = models.PositiveIntegerField(validators=[MaxValueValidator(100)])
+
+    observation = models.ForeignKey(
+        to=Observation,
         on_delete=models.CASCADE
     )
 

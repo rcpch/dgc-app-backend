@@ -23,7 +23,8 @@ from .models import (
     Child,
     ChildOrganisation,
     OrganisationInvite,
-    Observation
+    Observation,
+    DGCResult
 )
 from .crypto import (
     derive_key,
@@ -230,12 +231,8 @@ class ObservationSchema(Schema):
     observation_type: ObservationType
     observation_value: float
 
-class ExpandedObservationSchema(ObservationSchema):
-    dgc_api_result: dict
-
 class ExpandedChild(ChildSchema):
     organisation_ids: list[UUID]
-    observations: list[ExpandedObservationSchema]
 
 class ExpandedChildren(Schema):
     children: list[ExpandedChild]
@@ -248,19 +245,7 @@ def children(request):
     ).annotate(
         organisation_ids=ArrayAgg('childorganisation__organisation_id'),
         encrypted_organisation_keys=ArrayAgg('childorganisation__organisation__userorganisation__encrypted_organisation_key'),
-        encrypted_child_keys=ArrayAgg('childorganisation__encrypted_child_key'),
-        observations_dgc_api_results=ArrayAgg(
-            'observation__encrypted_dgc_api_result',
-            filter=Q(observation__encrypted_dgc_api_result__isnull=False)
-        ),
-        observations_types=ArrayAgg(
-            'observation__observation_type',
-            filter=Q(observation__observation_type__isnull=False)
-        ),
-        observations_values=ArrayAgg(
-            'observation__observation_value',
-            filter=Q(observation__observation_value__isnull=False)
-        )
+        encrypted_child_keys=ArrayAgg('childorganisation__encrypted_child_key')
     ).values(
         'id',
         'encrypted_name',
@@ -269,10 +254,7 @@ def children(request):
         'gestation_days',
         'organisation_ids',
         'encrypted_organisation_keys',
-        'encrypted_child_keys',
-        'observations_dgc_api_results',
-        'observations_types',
-        'observations_values'
+        'encrypted_child_keys'
     )
 
     rows = []
@@ -297,29 +279,13 @@ def children(request):
             case _:
                 raise ValueError("Unknown sex code")
 
-        observations = []
-        for (enc_result, obs_type, obs_value) in zip(
-            row['observations_dgc_api_results'] or [],
-            row['observations_types'] or [],
-            row['observations_values'] or []
-        ):
-            dgc_api_result = json.loads(decrypt_str(child_f, enc_result))
-
-            observations.append(ExpandedObservationSchema(
-                observation_date=date.today(),  # TODO MRB: store real date
-                observation_type={1: 'height', 2: 'weight', 3: 'ofc'}.get(obs_type, 'unknown'),
-                observation_value=obs_value,
-                dgc_api_result=dgc_api_result
-            ))
-
         rows.append(ExpandedChild(
             id=row['id'],
             name=name,
             date_of_birth=date_of_birth,
             sex=sex,
             gestation_days=row['gestation_days'],
-            organisation_ids=row['organisation_ids'],
-            observations=observations
+            organisation_ids=row['organisation_ids']
         ))
 
     return 200, ExpandedChildren(children=rows)
@@ -414,6 +380,8 @@ class UpdateChildSchema(Schema):
 def update_child(request, child_id: str, data: UpdateChildSchema):
     (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
 
+    # TODO MRB: recalculate DGC results
+
     if data.name is not None:
         child.encrypted_name = encrypt_str(child_f, data.name)
     if data.date_of_birth is not None:
@@ -466,6 +434,60 @@ def delete_child(request, organisation_id: str, child_id: str):
     
         return 204, None
 
+Reference = Union[
+    Literal['uk-who'],
+    Literal['turner'],
+    Literal['trisomy-21'],
+    Literal['trisomy-21-aap'],
+    Literal['cdc'],
+    Literal['who']
+]
+
+class ExpandedObservationSchema(ObservationSchema):
+    dgc_api_result: dict
+
+class Observations(Schema):
+    observations: list[ExpandedObservationSchema]
+
+@api.get("/children/{child_id}/observations/{reference}", auth=AuthBearer(), response=Observations)
+def get_observations(request, child_id: str, reference: Reference):
+    (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
+
+    observations = Observation.objects.filter(
+        child=child,
+    )
+
+    dgc_results = DGCResult.objects.filter(
+        observation__in=observations,
+        reference=reference
+    ).select_related('observation')
+
+    if observations.count() != dgc_results.count():
+        # reload! reload!
+        pass
+
+    observations: list[ExpandedObservationSchema] = []
+
+    for result in dgc_results:
+        observation = result.observation
+
+        dgc_api_result_encrypted = result.encrypted_dgc_api_result
+        dgc_api_result_json = decrypt_str(child_f, dgc_api_result_encrypted)
+        dgc_api_result = json.loads(dgc_api_result_json)
+
+        observations.append(ExpandedObservationSchema(
+            observation_date=date.fromisoformat(decrypt_str(child_f, observation.encrypted_observation_date)),
+            observation_type={
+                1: 'height',
+                2: 'weight',
+                3: 'ofc'
+            }[observation.observation_type],
+            observation_value=observation.observation_value,
+            dgc_api_result=dgc_api_result
+        ))
+
+    return 200, Observations(observations=observations)
+
 
 @api.post("/children/{child_id}/observations", auth=AuthBearer(), response={201: None})
 def add_observation(request, child_id: str, data: ObservationSchema):
@@ -491,13 +513,29 @@ def add_observation(request, child_id: str, data: ObservationSchema):
         observation_value=data.observation_value
     )
 
+    encrypted_observation_date = encrypt_str(child_f, data.observation_date.isoformat())
     encrypted_dgc_api_result = encrypt_str(child_f, json.dumps(dgc_api_result))
 
-    obs = Observation.objects.create(
+    corrected_sds = dgc_api_result['measurement_calculated_values']['corrected_sds']
+    corrected_centile = dgc_api_result['measurement_calculated_values']['corrected_centile']
+    chronological_sds = dgc_api_result['measurement_calculated_values']['chronological_sds']
+    chronological_centile = dgc_api_result['measurement_calculated_values']['chronological_centile']
+
+    observation = Observation.objects.create(
         observation_type=observation_type,
         observation_value=data.observation_value,
-        encrypted_dgc_api_result=encrypted_dgc_api_result,
+        encrypted_observation_date=encrypted_observation_date,
         child=child
+    )
+
+    DGCResult.objects.create(
+        reference="uk-who",
+        encrypted_dgc_api_result=encrypted_dgc_api_result,
+        observation=observation,
+        corrected_sds=corrected_sds,
+        corrected_centile=corrected_centile,
+        chronological_sds=chronological_sds,
+        chronological_centile=chronological_centile
     )
 
     return 201, None
