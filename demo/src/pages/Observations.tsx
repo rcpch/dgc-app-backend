@@ -74,7 +74,7 @@ export function Observations({ child_id }: { child_id: string }) {
                 observation_value: observationValue
               });
 
-              await fetchObservations(child.id);
+              await fetchObservations(child.id, reference);
             }}
           />
         </tbody>
