@@ -18,6 +18,17 @@ export type Organisation = {
 
 export type Sex = 'male' | 'female';
 
+export const REFERENCES = [
+  'uk-who',
+  'turner',
+  'trisomy-21',
+  'trisomy-21-aap',
+  'cdc',
+  'who'
+] as const;
+
+export type Reference = typeof REFERENCES[number];
+
 export type Child = {
   id: string;
   name: string;
@@ -36,22 +47,12 @@ export type Observation = {
   observation_value: number
 }
 
-export const REFERENCES = [
-  'uk-who',
-  'turner',
-  'trisomy-21',
-  'trisomy-21-aap',
-  'cdc',
-  'who'
-] as const;
-
-export type Reference = typeof REFERENCES[number];
-
 export type ExpandedObservation = Observation & {
   dgc_api_result: any
 };
 
 export type ExpandedChild = Child & {
+  reference: Reference;
   organisation_ids: string[];
 }
 

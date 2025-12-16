@@ -2,13 +2,15 @@ import { useEffect, useState } from "preact/hooks";
 import { Nav } from "../components/Nav";
 import { CreateObservationRow } from "../components/AddObservationRow";
 import { useLoggedInAppState } from "../state";
-import { addObservation, getObservations, Reference, REFERENCES } from "../api";
+import { addObservation, ExpandedObservation, getObservations, Reference, REFERENCES } from "../api";
 
 export function Observations({ child_id }: { child_id: string }) {
   const appState = useLoggedInAppState();
 
-  const [reference, setReference] = useState<Reference>('uk-who');
-  const [observations, setObservations] = useState(null);
+  const [reference, setReference] = useState<Reference>(null);
+  const [observations, setObservations] = useState<null |ExpandedObservation[]>(null);
+
+  const child = appState.children.value.find(c => c.id === child_id);
 
   async function fetchObservations(child_id: string, reference: Reference) {
     const observations = await getObservations(child_id, reference);
@@ -16,10 +18,10 @@ export function Observations({ child_id }: { child_id: string }) {
   }
 
   useEffect(() => {
-    fetchObservations(child_id, reference);
-  }, [child_id, reference]);
-
-  const child = appState.children.value.find(c => c.id === child_id);
+    if(child) {
+      fetchObservations(child_id, reference ?? child.reference);
+    }
+  }, [child, reference]);
 
   if (!child) {
     return <div>Child not found</div>;
@@ -74,7 +76,7 @@ export function Observations({ child_id }: { child_id: string }) {
                 observation_value: observationValue
               });
 
-              await fetchObservations(child.id, reference);
+              await fetchObservations(child.id, reference ?? child.reference);
             }}
           />
         </tbody>

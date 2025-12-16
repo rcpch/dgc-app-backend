@@ -145,7 +145,6 @@ def test_child_pii_is_encrypted(user_fixture, client):
     assert child.encrypted_date_of_birth != "2010-01-01"
 
     assert child.sex == 1
-    assert child.days_since_birth == (date.today() - date.fromisoformat("2010-01-01")).days
 
 
 @pytest.mark.django_db

@@ -6,6 +6,18 @@ from cryptography.fernet import Fernet
 
 from .crypto import decrypt_bytes
 
+DGCReferenceField = lambda: models.CharField(
+    max_length=20,
+    choices=[
+        ("uk-who", "uk-who"),
+        ("turner", "turner"),
+        ("trisomy-21", "trisomy-21"),
+        ("trisomy-21-aap", "trisomy-21-aap"),
+        ("cdc", "cdc"),
+        ("who", "who")
+    ]
+)  
+
 class User(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -38,7 +50,7 @@ class UserRegistration(models.Model):
 class Organisation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # TODO MRB: default reference?
+    default_reference = DGCReferenceField()
 
     # Encrypted with the organisation key
     encrypted_name = models.CharField(max_length=300, blank=True, null=True)
@@ -89,10 +101,9 @@ class Child(models.Model):
     # Only set if known, otherwise term is assumed when calling the API
     gestation_days = models.PositiveIntegerField(blank=True, null=True)
 
-    # Plaintext - for analysis
-    days_since_birth = models.PositiveIntegerField()
-
-    # TODO MRB: default reference?
+    # We don't delete DGC results if the reference changes, this is to avoid having
+    # to select the right one when entering additional measurements
+    reference = DGCReferenceField()
 
     # TODO: in the future add plaintext linkage identifiers like NHS number
 
@@ -130,6 +141,9 @@ class Observation(models.Model):
 
     # Encrypted with the child key
     encrypted_observation_date = models.CharField(max_length=300)
+
+    # Plaintext - for analysis
+    days_since_birth = models.PositiveIntegerField()
 
     observation_value = models.DecimalField(max_digits=5, decimal_places=2)
 

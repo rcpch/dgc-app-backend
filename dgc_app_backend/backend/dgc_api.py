@@ -19,6 +19,8 @@ class DGCObservation:
 
 # TODO MRB: gestation (https://github.com/rcpch/dgc-app-backend/issues/15)
 def call_bulk_dgc_api(reference: str, date_of_birth: date, sex_code: int, observation_type_code: int, observations: list[DGCObservation]) -> dict:    
+    logger.info(f"Calling DGC API for reference {reference} with {len(observations)} observations")
+
     dgc_api_url = f"{settings.DGC_API_URL}/{reference}/bulk-calculation"
     dgc_api_key = settings.DGC_API_KEY
 
