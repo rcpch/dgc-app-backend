@@ -7,6 +7,7 @@ import json
 from datetime import date
 from uuid import UUID
 from typing import Tuple, List, Union, Literal
+from collections import defaultdict
 
 from ninja import NinjaAPI, Schema
 from cryptography.fernet import Fernet
@@ -44,7 +45,8 @@ from .organisations import (
     create_organisation,
 )
 from .dgc_api import (
-    call_dgc_api
+    call_bulk_dgc_api,
+    DGCObservation
 )
 
 
@@ -462,31 +464,76 @@ def get_observations(request, child_id: str, reference: Reference):
         reference=reference
     ).select_related('observation')
 
+    ret = []
+
     if observations.count() != dgc_results.count():
-        # reload! reload!
-        pass
+        date_of_birth = date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
 
-    observations: list[ExpandedObservationSchema] = []
+        observations_by_type = defaultdict(list)
 
-    for result in dgc_results:
-        observation = result.observation
+        for obs in observations:
+            observations_by_type[obs.observation_type].append(obs)
+        
+        for observation_type_code, obs_list in observations_by_type.items():
+            dgc_observations = []
+            for obs in obs_list:
+                observation_date = date.fromisoformat(decrypt_str(child_f, obs.encrypted_observation_date))
+                dgc_observations.append(DGCObservation(
+                    observation_date=observation_date,
+                    observation_value=float(obs.observation_value)
+                ))
 
-        dgc_api_result_encrypted = result.encrypted_dgc_api_result
-        dgc_api_result_json = decrypt_str(child_f, dgc_api_result_encrypted)
-        dgc_api_result = json.loads(dgc_api_result_json)
+            dgc_results = call_bulk_dgc_api(
+                reference=reference,
+                date_of_birth=date_of_birth,
+                sex_code=child.sex,
+                observation_type_code=observation_type_code,
+                observations=dgc_observations
+            )
 
-        observations.append(ExpandedObservationSchema(
-            observation_date=date.fromisoformat(decrypt_str(child_f, observation.encrypted_observation_date)),
-            observation_type={
-                1: 'height',
-                2: 'weight',
-                3: 'ofc'
-            }[observation.observation_type],
-            observation_value=observation.observation_value,
-            dgc_api_result=dgc_api_result
-        ))
+            for (obs, dgc_result) in zip(obs_list, dgc_results['results']):
+                DGCResult.objects.update_or_create(
+                    observation=obs,
+                    reference=reference,
+                    defaults={
+                        'encrypted_dgc_api_result': encrypt_str(child_f, json.dumps(dgc_result)),
+                        'corrected_sds': dgc_result['measurement_calculated_values']['corrected_sds'],
+                        'corrected_centile': dgc_result['measurement_calculated_values']['corrected_centile'],
+                        'chronological_sds': dgc_result['measurement_calculated_values']['chronological_sds'],
+                        'chronological_centile': dgc_result['measurement_calculated_values']['chronological_centile']
+                    }
+                )
 
-    return 200, Observations(observations=observations)
+                ret.append(ExpandedObservationSchema(
+                    observation_date=date.fromisoformat(decrypt_str(child_f, obs.encrypted_observation_date)),
+                    observation_type={
+                        1: 'height',
+                        2: 'weight',
+                        3: 'ofc'
+                    }[obs.observation_type],
+                    observation_value=obs.observation_value,
+                    dgc_api_result=dgc_result
+                ))
+    else:
+        for result in dgc_results:
+            observation = result.observation
+
+            dgc_api_result_encrypted = result.encrypted_dgc_api_result
+            dgc_api_result_json = decrypt_str(child_f, dgc_api_result_encrypted)
+            dgc_api_result = json.loads(dgc_api_result_json)
+
+            ret.append(ExpandedObservationSchema(
+                observation_date=date.fromisoformat(decrypt_str(child_f, observation.encrypted_observation_date)),
+                observation_type={
+                    1: 'height',
+                    2: 'weight',
+                    3: 'ofc'
+                }[observation.observation_type],
+                observation_value=observation.observation_value,
+                dgc_api_result=dgc_api_result
+            ))
+
+    return 200, Observations(observations=ret)
 
 
 @api.post("/children/{child_id}/observations", auth=AuthBearer(), response={201: None})
@@ -505,37 +552,13 @@ def add_observation(request, child_id: str, data: ObservationSchema):
 
     date_of_birth = date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
 
-    dgc_api_result = call_dgc_api(
-        date_of_birth=date_of_birth,
-        observation_date=data.observation_date,
-        sex_code=child.sex,
-        observation_type_code=observation_type,
-        observation_value=data.observation_value
-    )
-
     encrypted_observation_date = encrypt_str(child_f, data.observation_date.isoformat())
-    encrypted_dgc_api_result = encrypt_str(child_f, json.dumps(dgc_api_result))
-
-    corrected_sds = dgc_api_result['measurement_calculated_values']['corrected_sds']
-    corrected_centile = dgc_api_result['measurement_calculated_values']['corrected_centile']
-    chronological_sds = dgc_api_result['measurement_calculated_values']['chronological_sds']
-    chronological_centile = dgc_api_result['measurement_calculated_values']['chronological_centile']
 
     observation = Observation.objects.create(
         observation_type=observation_type,
         observation_value=data.observation_value,
         encrypted_observation_date=encrypted_observation_date,
         child=child
-    )
-
-    DGCResult.objects.create(
-        reference="uk-who",
-        encrypted_dgc_api_result=encrypted_dgc_api_result,
-        observation=observation,
-        corrected_sds=corrected_sds,
-        corrected_centile=corrected_centile,
-        chronological_sds=chronological_sds,
-        chronological_centile=chronological_centile
     )
 
     return 201, None
