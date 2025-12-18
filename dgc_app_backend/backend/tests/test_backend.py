@@ -26,8 +26,19 @@ def user_fixture():
 
 @pytest.fixture(autouse=True)
 def mock_dgc_api_call():
-    with patch("dgc_app_backend.backend.api.call_bulk_dgc_api") as mock_call:
-        mock_call.return_value = {}
+    with patch("dgc_app_backend.backend.dgc.call_bulk_dgc_api") as mock_call:
+        mock_call.return_value = {
+            "results": [
+                {
+                    "measurement_calculated_values": {
+                        "corrected_sds": 0.0,
+                        "corrected_centile": 0,
+                        "chronological_sds": 0.0,
+                        "chronological_centile": 0
+                    }
+                }
+            ]
+        }
         yield mock_call
 
 

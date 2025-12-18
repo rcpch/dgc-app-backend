@@ -44,7 +44,6 @@ from .organisations import (
     create_organisation,
 )
 from .dgc import (
-    call_bulk_dgc_api,
     calculate_dgc_results_for_reference,
     recalculate_dgc_results
 )
