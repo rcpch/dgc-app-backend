@@ -26,8 +26,19 @@ def user_fixture():
 
 @pytest.fixture(autouse=True)
 def mock_dgc_api_call():
-    with patch("dgc_app_backend.backend.api.call_dgc_api") as mock_call:
-        mock_call.return_value = {}
+    with patch("dgc_app_backend.backend.dgc.call_bulk_dgc_api") as mock_call:
+        mock_call.return_value = {
+            "results": [
+                {
+                    "measurement_calculated_values": {
+                        "corrected_sds": 0.0,
+                        "corrected_centile": 0,
+                        "chronological_sds": 0.0,
+                        "chronological_centile": 0
+                    }
+                }
+            ]
+        }
         yield mock_call
 
 
@@ -145,7 +156,6 @@ def test_child_pii_is_encrypted(user_fixture, client):
     assert child.encrypted_date_of_birth != "2010-01-01"
 
     assert child.sex == 1
-    assert child.days_since_birth == (date.today() - date.fromisoformat("2010-01-01")).days
 
 
 @pytest.mark.django_db
@@ -302,17 +312,16 @@ def test_add_observation(user_fixture, client):
     assert response.status_code == 201
 
     # Verify the observation appears in the children list
-    response = client.get(f"/children", headers={
+    response = client.get(f"/children/{child_id}/observations/uk-who", headers={
         "Authorization": f"Bearer {access_token}"
     })
 
     assert response.status_code == 200
 
-    children = response.json()["children"]
-    assert len(children) == 1
-    assert len(children[0]["observations"]) == 1
+    observations = response.json()["observations"]
+    assert len(observations) == 1
 
-    observation = children[0]["observations"][0]
+    observation = observations[0]
     assert observation["observation_type"] == "height"
     assert observation["observation_value"] == 145.5
     assert "dgc_api_result" in observation
@@ -328,3 +337,4 @@ def test_add_observation(user_fixture, client):
 #   - can't create invite just by knowing org ID
 # TODO MRB: create org and test PII encrypted
 # TODO MRB: test redeeming invite and PII is still encrypted
+# TODO MRB: test dGC recalculating (including atomic transactions)

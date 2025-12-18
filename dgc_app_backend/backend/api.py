@@ -23,7 +23,8 @@ from .models import (
     Child,
     ChildOrganisation,
     OrganisationInvite,
-    Observation
+    Observation,
+    DGCResult
 )
 from .crypto import (
     derive_key,
@@ -42,8 +43,9 @@ from .auth import (
 from .organisations import (
     create_organisation,
 )
-from .dgc_api import (
-    call_dgc_api
+from .dgc import (
+    calculate_dgc_results_for_reference,
+    recalculate_dgc_results
 )
 
 
@@ -218,11 +220,21 @@ ObservationType = Union[
     Literal['ofc']
 ]
 
+Reference = Union[
+    Literal['uk-who'],
+    Literal['turner'],
+    Literal['trisomy-21'],
+    Literal['trisomy-21-aap'],
+    Literal['cdc'],
+    Literal['who']
+]
+
 class ChildSchema(Schema):
     id: UUID
     name: str
     date_of_birth: date
     sex: Sex
+    reference: Reference
     gestation_days: int | None = None
 
 class ObservationSchema(Schema):
@@ -230,12 +242,8 @@ class ObservationSchema(Schema):
     observation_type: ObservationType
     observation_value: float
 
-class ExpandedObservationSchema(ObservationSchema):
-    dgc_api_result: dict
-
 class ExpandedChild(ChildSchema):
     organisation_ids: list[UUID]
-    observations: list[ExpandedObservationSchema]
 
 class ExpandedChildren(Schema):
     children: list[ExpandedChild]
@@ -248,19 +256,7 @@ def children(request):
     ).annotate(
         organisation_ids=ArrayAgg('childorganisation__organisation_id'),
         encrypted_organisation_keys=ArrayAgg('childorganisation__organisation__userorganisation__encrypted_organisation_key'),
-        encrypted_child_keys=ArrayAgg('childorganisation__encrypted_child_key'),
-        observations_dgc_api_results=ArrayAgg(
-            'observation__encrypted_dgc_api_result',
-            filter=Q(observation__encrypted_dgc_api_result__isnull=False)
-        ),
-        observations_types=ArrayAgg(
-            'observation__observation_type',
-            filter=Q(observation__observation_type__isnull=False)
-        ),
-        observations_values=ArrayAgg(
-            'observation__observation_value',
-            filter=Q(observation__observation_value__isnull=False)
-        )
+        encrypted_child_keys=ArrayAgg('childorganisation__encrypted_child_key')
     ).values(
         'id',
         'encrypted_name',
@@ -270,9 +266,7 @@ def children(request):
         'organisation_ids',
         'encrypted_organisation_keys',
         'encrypted_child_keys',
-        'observations_dgc_api_results',
-        'observations_types',
-        'observations_values'
+        'reference'
     )
 
     rows = []
@@ -297,21 +291,6 @@ def children(request):
             case _:
                 raise ValueError("Unknown sex code")
 
-        observations = []
-        for (enc_result, obs_type, obs_value) in zip(
-            row['observations_dgc_api_results'] or [],
-            row['observations_types'] or [],
-            row['observations_values'] or []
-        ):
-            dgc_api_result = json.loads(decrypt_str(child_f, enc_result))
-
-            observations.append(ExpandedObservationSchema(
-                observation_date=date.today(),  # TODO MRB: store real date
-                observation_type={1: 'height', 2: 'weight', 3: 'ofc'}.get(obs_type, 'unknown'),
-                observation_value=obs_value,
-                dgc_api_result=dgc_api_result
-            ))
-
         rows.append(ExpandedChild(
             id=row['id'],
             name=name,
@@ -319,7 +298,7 @@ def children(request):
             sex=sex,
             gestation_days=row['gestation_days'],
             organisation_ids=row['organisation_ids'],
-            observations=observations
+            reference=row['reference']
         ))
 
     return 200, ExpandedChildren(children=rows)
@@ -346,15 +325,13 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
             sex = 0
         case 'female':
             sex = 1
-    
-    days_since_birth = (date.today() - data.date_of_birth).days
 
     child = Child.objects.create(
         encrypted_name=encrypted_name,
         encrypted_date_of_birth=encrypted_date_of_birth,
         sex = sex,
         gestation_days = data.gestation_days,
-        days_since_birth = days_since_birth
+        reference = organisation.default_reference
     )
 
     ChildOrganisation.objects.create(
@@ -368,7 +345,8 @@ def add_child(request, organisation_id: str, data: NewChildSchema):
         name=data.name,
         date_of_birth=data.date_of_birth,
         sex=data.sex,
-        gestation_days=data.gestation_days
+        reference=child.reference,
+        gestation_days=data.gestation_days,
     )
 
 
@@ -409,27 +387,48 @@ class UpdateChildSchema(Schema):
     date_of_birth: date | None = None
     sex: Sex | None = None
     gestation_days: int | None = None
+    reference: Reference | None = None
 
 @api.patch("/children/{child_id}", auth=AuthBearer(), response={200: ChildSchema})
 def update_child(request, child_id: str, data: UpdateChildSchema):
     (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
 
+    # TODO MRB: recalculate DGC results and obs days since birth?
+    recalculation_required = False
+
     if data.name is not None:
         child.encrypted_name = encrypt_str(child_f, data.name)
+
     if data.date_of_birth is not None:
         child.encrypted_date_of_birth = encrypt_str(child_f, data.date_of_birth.isoformat())
-        child.days_since_birth = (date.today() - data.date_of_birth).days
+        recalculation_required = True
+
     if data.sex is not None:
         match data.sex:
             case 'male':
                 child.sex = 0
             case 'female':
                 child.sex = 1
+        
+        recalculation_required = True
 
     if data.gestation_days is not None:
         child.gestation_days = data.gestation_days
+        recalculation_required = True
+    
+    if data.reference is not None:
+        child.reference = data.reference
+        # Recalculated on demand when viewing the chart
 
-    child.save()
+    with transaction.atomic():
+        child.save()
+
+        if recalculation_required:
+            recalculate_dgc_results(
+                date_of_birth=data.date_of_birth,
+                child=child,
+                child_f=child_f
+            )
 
     match child.sex:
         case 0:
@@ -444,7 +443,8 @@ def update_child(request, child_id: str, data: UpdateChildSchema):
         name=decrypt_str(child_f, child.encrypted_name),
         date_of_birth=date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth)),
         sex=sex,
-        gestation_days=child.gestation_days
+        gestation_days=child.gestation_days,
+        reference=child.reference
     )
 
 @api.delete("/organisations/{organisation_id}/children/{child_id}", auth=AuthBearer(), response={204: None})
@@ -466,6 +466,62 @@ def delete_child(request, organisation_id: str, child_id: str):
     
         return 204, None
 
+class ExpandedObservationSchema(ObservationSchema):
+    dgc_api_result: dict
+
+class Observations(Schema):
+    observations: list[ExpandedObservationSchema]
+
+@api.get("/children/{child_id}/observations/{reference}", auth=AuthBearer(), response=Observations)
+def get_observations(request, child_id: str, reference: Reference):
+    (child, _, child_f) = get_child_and_organisation_or_404(request, request.auth.user, child_id)
+
+    observations = Observation.objects.filter(
+        child=child,
+    )
+
+    dgc_results = DGCResult.objects.filter(
+        observation__in=observations,
+        reference=reference
+    ).select_related('observation')
+
+    ret = []
+
+    if observations.count() != dgc_results.count():
+        date_of_birth = date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
+
+        with transaction.atomic():
+            calculate_dgc_results_for_reference(
+                date_of_birth=date_of_birth,
+                sex=child.sex,
+                child_f=child_f,
+                reference=reference,
+                observations=observations
+            )
+    
+        # Reload! Reload!
+        dgc_results = dgc_results.all()
+
+    for result in dgc_results:
+        observation = result.observation
+
+        dgc_api_result_encrypted = result.encrypted_dgc_api_result
+        dgc_api_result_json = decrypt_str(child_f, dgc_api_result_encrypted)
+        dgc_api_result = json.loads(dgc_api_result_json)
+
+        ret.append(ExpandedObservationSchema(
+            observation_date=date.fromisoformat(decrypt_str(child_f, observation.encrypted_observation_date)),
+            observation_type={
+                1: 'height',
+                2: 'weight',
+                3: 'ofc'
+            }[observation.observation_type],
+            observation_value=observation.observation_value,
+            dgc_api_result=dgc_api_result
+        ))
+
+    return 200, Observations(observations=ret)
+
 
 @api.post("/children/{child_id}/observations", auth=AuthBearer(), response={201: None})
 def add_observation(request, child_id: str, data: ObservationSchema):
@@ -483,20 +539,13 @@ def add_observation(request, child_id: str, data: ObservationSchema):
 
     date_of_birth = date.fromisoformat(decrypt_str(child_f, child.encrypted_date_of_birth))
 
-    dgc_api_result = call_dgc_api(
-        date_of_birth=date_of_birth,
-        observation_date=data.observation_date,
-        sex_code=child.sex,
-        observation_type_code=observation_type,
-        observation_value=data.observation_value
-    )
+    encrypted_observation_date = encrypt_str(child_f, data.observation_date.isoformat())
 
-    encrypted_dgc_api_result = encrypt_str(child_f, json.dumps(dgc_api_result))
-
-    obs = Observation.objects.create(
+    observation = Observation.objects.create(
         observation_type=observation_type,
         observation_value=data.observation_value,
-        encrypted_dgc_api_result=encrypted_dgc_api_result,
+        encrypted_observation_date=encrypted_observation_date,
+        days_since_birth=(data.observation_date - date_of_birth).days,
         child=child
     )
 

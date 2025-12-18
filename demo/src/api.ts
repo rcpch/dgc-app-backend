@@ -1,3 +1,4 @@
+import { Ref } from "preact";
 import { getAuthData, saveAuthData } from "./auth";
 import { refreshToken } from "./oauth";
 
@@ -17,6 +18,17 @@ export type Organisation = {
 
 export type Sex = 'male' | 'female';
 
+export const REFERENCES = [
+  'uk-who',
+  'turner',
+  'trisomy-21',
+  'trisomy-21-aap',
+  'cdc',
+  'who'
+] as const;
+
+export type Reference = typeof REFERENCES[number];
+
 export type Child = {
   id: string;
   name: string;
@@ -24,7 +36,10 @@ export type Child = {
   sex: Sex;
 };
 
-export type ObservationType = 'height' | 'weight' | 'ofc';
+export type ObservationType =
+  'height' |
+  'weight' |
+  'ofc';
 
 export type Observation = {
   observation_date: string;
@@ -37,8 +52,8 @@ export type ExpandedObservation = Observation & {
 };
 
 export type ExpandedChild = Child & {
+  reference: Reference;
   organisation_ids: string[];
-  observations: ExpandedObservation[];
 }
 
 export type ExchangeIdTokenResponse = {
@@ -187,6 +202,14 @@ export async function updateChild(child: Child): Promise<Child> {
   });
 
   return response.json();
+}
+
+export async function getObservations(child_id: string, reference: Reference): Promise<ExpandedObservation[]> {
+  const response = await authFetch(`/api/children/${child_id}/observations/${reference}`);
+
+  const { observations } = await response.json();
+
+  return observations;
 }
 
 export async function addObservation(child_id: string, observation: Observation): Promise<void> {

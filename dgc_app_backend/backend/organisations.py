@@ -16,7 +16,9 @@ def create_organisation(auth_data: AuthData, organisation_name: str | None) -> O
 
     encrypted_name = encrypt_str(organisation_f, organisation_name) if organisation_name else None
     organisation = Organisation.objects.create(
-        encrypted_name=encrypted_name
+        encrypted_name=encrypted_name,
+        # TODO MRB: sniff this from locale?
+        default_reference="uk-who"
     )
 
     encrypted_organisation_key = encrypt_bytes(auth_data.key, organisation_key)
