@@ -1,5 +1,8 @@
 # dgc-app-backend-demo
 
+> [!NOTE]
+> This backend was an experiment and never made it to live use
+
 Backend for storing data for the RCPCH Digital Growth Charts app
 
 ## Getting started
